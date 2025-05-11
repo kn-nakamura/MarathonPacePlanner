@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ChangeEvent } from 'react';
 import { WheelSelector } from '../ui/wheel-selector';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { formatPace, calculateSegmentTime } from '@/utils/pace-utils';
 
 interface PaceWheelProps {
@@ -26,6 +27,8 @@ export function PaceWheel({
   
   const [selectedMinutes, setSelectedMinutes] = useState<number>(minutes || 4);
   const [selectedSeconds, setSelectedSeconds] = useState<number>(seconds || 0);
+  const [minutesInput, setMinutesInput] = useState<string>(String(minutes || 4));
+  const [secondsInput, setSecondsInput] = useState<string>(String(seconds || 0).padStart(2, '0'));
   
   // Generate wheel options
   const minutesOptions = Array.from({ length: 10 }, (_, i) => i + 3); // 3 to 12 minutes
@@ -39,8 +42,53 @@ export function PaceWheel({
       // Reset to initial pace when modal opens
       setSelectedMinutes(minutes || 4);
       setSelectedSeconds(seconds || 0);
+      setMinutesInput(String(minutes || 4));
+      setSecondsInput(String(seconds || 0).padStart(2, '0'));
     }
   }, [isOpen, minutes, seconds]);
+
+  // Handle manual input for minutes
+  const handleMinutesChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    
+    // Only allow numeric input
+    if (!/^\d*$/.test(value)) return;
+    
+    setMinutesInput(value);
+    
+    // Update the selected minutes if valid
+    if (value && Number(value) >= 0) {
+      setSelectedMinutes(Number(value));
+    }
+  };
+  
+  // Handle manual input for seconds
+  const handleSecondsChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    
+    // Only allow numeric input
+    if (!/^\d*$/.test(value)) return;
+    
+    setSecondsInput(value);
+    
+    // Update the selected seconds if valid (0-59)
+    if (value && Number(value) >= 0 && Number(value) <= 59) {
+      setSelectedSeconds(Number(value));
+    }
+  };
+
+  // Sync the wheel selector with the input field
+  const handleWheelMinutesChange = (value: string | number) => {
+    const numValue = Number(value);
+    setSelectedMinutes(numValue);
+    setMinutesInput(String(numValue));
+  };
+  
+  const handleWheelSecondsChange = (value: string | number) => {
+    const numValue = Number(value);
+    setSelectedSeconds(numValue);
+    setSecondsInput(String(numValue).padStart(2, '0'));
+  };
 
   // Calculate pace in format MM:SS/km
   const currentPace = `${selectedMinutes}:${selectedSeconds.toString().padStart(2, '0')}/km`;
@@ -73,27 +121,52 @@ export function PaceWheel({
         <DialogHeader>
           <DialogTitle>Adjust Pace</DialogTitle>
           <DialogDescription>
-            Use the wheel selector to adjust your pace for this segment.
+            Use the wheel selector or type directly to adjust your pace.
           </DialogDescription>
         </DialogHeader>
         
         <div className="flex mb-6 space-x-4">
           <div className="w-1/2">
             <label className="block text-sm font-medium mb-1">Minutes</label>
-            <WheelSelector 
-              options={minutesOptions}
-              value={selectedMinutes}
-              onChange={(value) => setSelectedMinutes(Number(value))}
-            />
+            <div className="space-y-2">
+              <WheelSelector 
+                options={minutesOptions}
+                value={selectedMinutes}
+                onChange={handleWheelMinutesChange}
+              />
+              <Input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={minutesInput}
+                onChange={handleMinutesChange}
+                className="text-center"
+                placeholder="Min"
+                aria-label="Minutes"
+              />
+            </div>
           </div>
           
           <div className="w-1/2">
             <label className="block text-sm font-medium mb-1">Seconds</label>
-            <WheelSelector 
-              options={formattedSecondsOptions}
-              value={selectedSeconds.toString().padStart(2, '0')}
-              onChange={(value) => setSelectedSeconds(Number(value))}
-            />
+            <div className="space-y-2">
+              <WheelSelector 
+                options={formattedSecondsOptions}
+                value={selectedSeconds.toString().padStart(2, '0')}
+                onChange={handleWheelSecondsChange}
+              />
+              <Input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={secondsInput}
+                onChange={handleSecondsChange}
+                className="text-center"
+                placeholder="Sec"
+                aria-label="Seconds"
+                maxLength={2}
+              />
+            </div>
           </div>
         </div>
         
@@ -107,7 +180,7 @@ export function PaceWheel({
           <span>Segment time: {segmentTime}</span>
         </div>
         
-        <DialogFooter className="flex space-x-2 sm:space-x-0">
+        <DialogFooter className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 space-x-0 sm:space-x-2">
           <Button
             type="button"
             onClick={handleApplyPace}

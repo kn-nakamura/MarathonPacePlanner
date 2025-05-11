@@ -93,19 +93,23 @@ export function SegmentTable({ segments, onUpdateSegment, onUpdateRemainingSegme
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleAdjustPace(index, 5)}
-                      title="Slower pace (add 5 seconds)"
+                      onClick={() => handleAdjustPace(index, 1)}
+                      title="Slower pace (add 1 second)"
                     >
                       <Minus className="h-4 w-4" />
                     </Button>
-                    <div className="w-20 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-center font-medium">
+                    <div 
+                      className="w-20 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-center font-medium cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600"
+                      onClick={() => handleOpenPaceWheel(index)}
+                      title="Click to adjust pace"
+                    >
                       {segment.customPace}
                     </div>
                     <Button
                       variant="ghost" 
                       size="icon"
-                      onClick={() => handleAdjustPace(index, -5)}
-                      title="Faster pace (subtract 5 seconds)"
+                      onClick={() => handleAdjustPace(index, -1)}
+                      title="Faster pace (subtract 1 second)"
                     >
                       <Plus className="h-4 w-4" />
                     </Button>

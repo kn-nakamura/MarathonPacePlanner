@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ChangeEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { SegmentTable } from '@/components/plan-table/segment-table';
 import { SummaryCard } from '@/components/result-summary/summary-card';
 import { PaceChart } from '@/components/pace-chart/pace-chart';
@@ -23,6 +24,55 @@ export default function Home() {
   const [planName, setPlanName] = useState<string>("");
   const { calculatePace, calculateTime } = usePaceConverter();
   const { toast } = useToast();
+  
+  // Load saved plan from localStorage on component mount
+  useEffect(() => {
+    try {
+      const savedPlan = localStorage.getItem('marathonPacePlan');
+      if (savedPlan) {
+        const plan = JSON.parse(savedPlan);
+        
+        // Parse target time
+        const [hours, minutes, seconds] = plan.targetTime.split(':');
+        setTargetHours(hours);
+        setTargetMinutes(minutes);
+        setTargetSeconds(seconds);
+        
+        // Set segments
+        setSegments(plan.segments);
+        
+        toast({
+          title: 'Plan Restored',
+          description: 'Your saved marathon pace plan has been loaded',
+        });
+      }
+    } catch (err) {
+      console.error('Error loading saved plan:', err);
+    }
+  }, [toast]);
+  
+  // Handle manual input for time values
+  const handleHoursChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (!/^\d*$/.test(value)) return;
+    setTargetHours(value);
+  };
+  
+  const handleMinutesChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (!/^\d*$/.test(value)) return;
+    if (value && Number(value) >= 0 && Number(value) <= 59) {
+      setTargetMinutes(value.padStart(2, '0'));
+    }
+  };
+  
+  const handleSecondsChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (!/^\d*$/.test(value)) return;
+    if (value && Number(value) >= 0 && Number(value) <= 59) {
+      setTargetSeconds(value.padStart(2, '0'));
+    }
+  };
   
   // Format the target time
   const targetTime = `${targetHours}:${targetMinutes}:${targetSeconds}`;
