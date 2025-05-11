@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatPace, calculateSegmentTime } from '@/utils/pace-utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface PaceWheelProps {
   isOpen: boolean;

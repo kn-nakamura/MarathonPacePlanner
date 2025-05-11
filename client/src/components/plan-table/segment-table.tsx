@@ -8,10 +8,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Plus, Minus, Sliders } from "lucide-react";
+import { Plus, Minus, Sliders, Clock } from "lucide-react";
 import { PaceWheel } from "@/components/pace-selector/pace-wheel";
 import { Segment } from "@/models/pace";
 import { adjustPaceBySeconds, formatPace, calculateCumulativeTimes } from "@/utils/pace-utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface SegmentTableProps {
   segments: Segment[];
@@ -22,6 +23,7 @@ interface SegmentTableProps {
 export function SegmentTable({ segments, onUpdateSegment, onUpdateRemainingSegments }: SegmentTableProps) {
   const [activeSegmentIndex, setActiveSegmentIndex] = useState<number | null>(null);
   const [cumulativeTimes, setCumulativeTimes] = useState<string[]>([]);
+  const isMobile = useIsMobile();
   
   // Calculate cumulative times whenever segments change
   useEffect(() => {
@@ -63,31 +65,37 @@ export function SegmentTable({ segments, onUpdateSegment, onUpdateRemainingSegme
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
-      <div className="p-4 sm:p-5 border-b border-gray-200 dark:border-gray-700">
+      <div className={`${isMobile ? 'p-3' : 'p-4 sm:p-5'} border-b border-gray-200 dark:border-gray-700`}>
         <h3 className="text-lg font-display font-semibold">Segment Editor</h3>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
           Tap on each pace to adjust values
         </p>
       </div>
       
       <div className="overflow-x-auto">
-        <Table>
+        <Table className={isMobile ? "text-sm" : ""}>
           <TableHeader>
             <TableRow>
-              <TableHead>Distance</TableHead>
-              <TableHead>Pace</TableHead>
-              <TableHead>Segment Time</TableHead>
-              <TableHead>Cumulative Time</TableHead>
+              <TableHead className={isMobile ? "py-2 px-2" : ""}>Distance</TableHead>
+              <TableHead className={isMobile ? "py-2 px-2" : ""}>Pace</TableHead>
+              <TableHead className={isMobile ? "py-2 px-2" : ""}>Time</TableHead>
+              <TableHead className={isMobile ? "py-2 px-2" : ""}>
+                <div className="flex items-center" title="Cumulative Time">
+                  <Clock className="w-4 h-4" />
+                </div>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {segments.map((segment, index) => (
               <TableRow key={segment.id}>
-                <TableCell className="text-muted-foreground">{segment.distance}</TableCell>
-                <TableCell>
+                <TableCell className={`text-muted-foreground ${isMobile ? "py-1.5 px-2" : ""}`}>
+                  {segment.distance}
+                </TableCell>
+                <TableCell className={isMobile ? "py-1.5 px-2" : ""}>
                   <div className="flex items-center">
                     <div 
-                      className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-center font-medium cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600"
+                      className={`${isMobile ? 'px-1.5 py-0.5 text-sm' : 'px-2 py-1'} bg-gray-100 dark:bg-gray-700 rounded text-center font-medium cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600`}
                       onClick={() => handleOpenPaceWheel(index)}
                       title="Click to adjust pace"
                     >
@@ -95,8 +103,10 @@ export function SegmentTable({ segments, onUpdateSegment, onUpdateRemainingSegme
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>{segment.segmentTime}</TableCell>
-                <TableCell className="font-semibold text-primary-600 dark:text-primary-400">
+                <TableCell className={isMobile ? "py-1.5 px-2" : ""}>
+                  {segment.segmentTime}
+                </TableCell>
+                <TableCell className={`font-semibold text-primary-600 dark:text-primary-400 ${isMobile ? "py-1.5 px-2" : ""}`}>
                   {cumulativeTimes[index] || ''}
                 </TableCell>
               </TableRow>
