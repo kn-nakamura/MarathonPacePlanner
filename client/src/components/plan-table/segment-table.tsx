@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Minus, Sliders } from "lucide-react";
 import { PaceWheel } from "@/components/pace-selector/pace-wheel";
 import { Segment } from "@/models/pace";
-import { adjustPaceBySeconds, formatPace } from "@/utils/pace-utils";
+import { adjustPaceBySeconds, formatPace, calculateCumulativeTimes } from "@/utils/pace-utils";
 
 interface SegmentTableProps {
   segments: Segment[];
@@ -21,6 +21,12 @@ interface SegmentTableProps {
 
 export function SegmentTable({ segments, onUpdateSegment, onUpdateRemainingSegments }: SegmentTableProps) {
   const [activeSegmentIndex, setActiveSegmentIndex] = useState<number | null>(null);
+  const [cumulativeTimes, setCumulativeTimes] = useState<string[]>([]);
+  
+  // Calculate cumulative times whenever segments change
+  useEffect(() => {
+    setCumulativeTimes(calculateCumulativeTimes(segments));
+  }, [segments]);
   
   // Handle opening the pace wheel for a segment
   const handleOpenPaceWheel = (index: number) => {
@@ -73,6 +79,7 @@ export function SegmentTable({ segments, onUpdateSegment, onUpdateRemainingSegme
               <TableHead>Target Pace</TableHead>
               <TableHead>Custom Pace</TableHead>
               <TableHead>Segment Time</TableHead>
+              <TableHead>Cumulative Time</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -114,6 +121,9 @@ export function SegmentTable({ segments, onUpdateSegment, onUpdateRemainingSegme
                   </div>
                 </TableCell>
                 <TableCell>{segment.segmentTime}</TableCell>
+                <TableCell className="font-semibold text-primary-600 dark:text-primary-400">
+                  {cumulativeTimes[index] || ''}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

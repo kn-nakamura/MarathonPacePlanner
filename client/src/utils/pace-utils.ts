@@ -78,6 +78,29 @@ export function calculateTotalTime(segments: Segment[]): string {
 }
 
 /**
+ * Calculates the cumulative time at each segment
+ * Returns an array of cumulative times in HH:MM:SS format
+ */
+export function calculateCumulativeTimes(segments: Segment[]): string[] {
+  let cumulativeSeconds = 0;
+  const cumulativeTimes: string[] = [];
+  
+  segments.forEach(segment => {
+    // Get the time parts (MM:SS) from the segment time
+    const [minutes, seconds] = segment.segmentTime.split(':').map(Number);
+    cumulativeSeconds += minutes * 60 + seconds;
+    
+    const hours = Math.floor(cumulativeSeconds / 3600);
+    const mins = Math.floor((cumulativeSeconds % 3600) / 60);
+    const secs = Math.round(cumulativeSeconds % 60);
+    
+    cumulativeTimes.push(formatTime(hours, mins, secs));
+  });
+  
+  return cumulativeTimes;
+}
+
+/**
  * Calculates the average pace based on total time and distance
  */
 export function calculateAveragePace(totalTime: string, distanceKm: number): string {

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { Segment } from '@/models/pace';
 import { 
   LineChart, 
@@ -9,9 +9,10 @@ import {
   Tooltip, 
   Legend, 
   ResponsiveContainer,
-  ReferenceLine
+  ReferenceLine,
+  Label
 } from 'recharts';
-import { paceToSeconds, secondsToPace } from '@/utils/pace-utils';
+import { paceToSeconds, secondsToPace, calculateCumulativeTimes } from '@/utils/pace-utils';
 import { toPng } from 'html-to-image';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
@@ -27,26 +28,42 @@ interface ChartData {
   distance: string;
   pace: number;
   targetPace: number;
+  cumulativeTime?: string;
 }
 
 export function PaceChart({ segments, targetTime }: PaceChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const [chartData, setChartData] = useState<ChartData[]>([]);
 
-  // Convert segment data for the chart
-  const chartData: ChartData[] = segments.map(segment => ({
-    name: segment.name,
-    distance: segment.distance,
-    pace: paceToSeconds(segment.customPace),
-    targetPace: paceToSeconds(segment.targetPace)
-  }));
+  // Update chart data when segments change
+  useEffect(() => {
+    // Get cumulative times
+    const cumulativeTimes = calculateCumulativeTimes(segments);
+    
+    // Build chart data with cumulative times
+    const data = segments.map((segment, index) => ({
+      name: segment.name,
+      distance: segment.distance,
+      pace: paceToSeconds(segment.customPace),
+      targetPace: paceToSeconds(segment.targetPace),
+      cumulativeTime: cumulativeTimes[index]
+    }));
+    
+    setChartData(data);
+  }, [segments]);
 
   // Calculate average target pace
-  const avgTargetPace = chartData.reduce((sum, segment) => sum + segment.targetPace, 0) / chartData.length;
+  const avgTargetPace = chartData.length > 0 
+    ? chartData.reduce((sum, segment) => sum + segment.targetPace, 0) / chartData.length
+    : 0;
 
   // Custom tooltip formatter
-  const paceTooltipFormatter = (value: number) => {
-    return secondsToPace(value);
+  const paceTooltipFormatter = (value: number, name: string) => {
+    if (name === 'pace' || name === 'targetPace') {
+      return secondsToPace(value);
+    }
+    return value;
   };
 
   // Function to download chart as PNG
@@ -80,6 +97,25 @@ export function PaceChart({ segments, targetTime }: PaceChartProps) {
     }
   };
 
+  // Custom label render for cumulative times
+  const renderCustomizedLabel = (props: any) => {
+    const { x, y, value, index } = props;
+    const cumulativeTime = chartData[index]?.cumulativeTime;
+    
+    return (
+      <text 
+        x={x} 
+        y={y - 15} 
+        fill="#82ca9d" 
+        fontSize={10} 
+        textAnchor="middle"
+        dominantBaseline="middle"
+      >
+        {cumulativeTime}
+      </text>
+    );
+  };
+
   return (
     <div className="mt-4">
       <div className="flex justify-between items-center mb-4">
@@ -103,7 +139,7 @@ export function PaceChart({ segments, targetTime }: PaceChartProps) {
           <LineChart
             data={chartData}
             margin={{
-              top: 5,
+              top: 20,
               right: 30,
               left: 20,
               bottom: 35,
@@ -131,6 +167,10 @@ export function PaceChart({ segments, targetTime }: PaceChartProps) {
             <Tooltip 
               formatter={paceTooltipFormatter}
               labelFormatter={(label) => `Distance: ${label}`}
+              contentStyle={{ 
+                backgroundColor: document.documentElement.classList.contains('dark') ? '#374151' : '#ffffff',
+                border: '1px solid #ccc'
+              }}
             />
             <Legend verticalAlign="top" height={36} />
             <ReferenceLine 
@@ -154,9 +194,13 @@ export function PaceChart({ segments, targetTime }: PaceChartProps) {
               name="Custom Pace" 
               strokeWidth={2}
               dot={{ r: 4 }}
+              label={renderCustomizedLabel}
             />
           </LineChart>
         </ResponsiveContainer>
+        <div className="text-xs text-center mt-2 text-muted-foreground">
+          Note: Cumulative times shown above each data point
+        </div>
       </div>
     </div>
   );
