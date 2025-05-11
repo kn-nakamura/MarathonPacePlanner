@@ -193,7 +193,8 @@ export default function Home() {
 
   // Hours, minutes, seconds options for selects
   const hoursOptions = Array.from({ length: 7 }, (_, i) => i.toString());
-  const minutesOptions = Array.from({ length: 12 }, (_, i) => (i * 5).toString().padStart(2, '0'));
+  // Minutes options from 0 to 59 (1 minute increments)
+  const minutesOptions = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
   const secondsOptions = ['00', '15', '30', '45'];
 
   return (
@@ -216,80 +217,42 @@ export default function Home() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <Label htmlFor="hour">Hours</Label>
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      id="hour"
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={targetHours}
-                      onChange={handleHoursChange}
-                      className="text-center"
-                      placeholder="H"
-                    />
-                    <Select value={targetHours} onValueChange={setTargetHours}>
-                      <SelectTrigger className="w-20 flex-shrink-0">
-                        <SelectValue placeholder="H" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {hoursOptions.map(hour => (
-                          <SelectItem key={hour} value={hour}>{hour}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Select value={targetHours} onValueChange={setTargetHours}>
+                    <SelectTrigger id="hour">
+                      <SelectValue placeholder="Hours" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {hoursOptions.map(hour => (
+                        <SelectItem key={hour} value={hour}>{hour}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="minute">Minutes</Label>
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      id="minute"
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={targetMinutes}
-                      onChange={handleMinutesChange}
-                      className="text-center"
-                      placeholder="M"
-                      maxLength={2}
-                    />
-                    <Select value={targetMinutes} onValueChange={setTargetMinutes}>
-                      <SelectTrigger className="w-20 flex-shrink-0">
-                        <SelectValue placeholder="M" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {minutesOptions.map(minute => (
-                          <SelectItem key={minute} value={minute}>{minute}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Select value={targetMinutes} onValueChange={setTargetMinutes}>
+                    <SelectTrigger id="minute">
+                      <SelectValue placeholder="Minutes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {minutesOptions.map(minute => (
+                        <SelectItem key={minute} value={minute}>{minute}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="second">Seconds</Label>
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      id="second"
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={targetSeconds}
-                      onChange={handleSecondsChange}
-                      className="text-center"
-                      placeholder="S"
-                      maxLength={2}
-                    />
-                    <Select value={targetSeconds} onValueChange={setTargetSeconds}>
-                      <SelectTrigger className="w-20 flex-shrink-0">
-                        <SelectValue placeholder="S" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {secondsOptions.map(second => (
-                          <SelectItem key={second} value={second}>{second}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Select value={targetSeconds} onValueChange={setTargetSeconds}>
+                    <SelectTrigger id="second">
+                      <SelectValue placeholder="Seconds" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {secondsOptions.map(second => (
+                        <SelectItem key={second} value={second}>{second}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <Button 
