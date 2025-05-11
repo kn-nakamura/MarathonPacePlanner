@@ -197,61 +197,99 @@ export default function Home() {
   const secondsOptions = ['00', '15', '30', '45'];
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6">
       {/* Welcome Section */}
-      <div className="mb-8">
-        <h2 className="text-2xl font-display font-semibold mb-2">Welcome, Runner!</h2>
-        <p className="text-gray-600 dark:text-gray-400">Create, customize and save your marathon pace strategy below.</p>
+      <div className="mb-6 sm:mb-8">
+        <h2 className="text-xl sm:text-2xl font-display font-semibold mb-2">Welcome, Runner!</h2>
+        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">Create, customize and save your marathon pace strategy below.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
         {/* Left Column: Input & Summary */}
-        <div className="lg:col-span-4 space-y-6">
+        <div className="lg:col-span-4 space-y-4 sm:space-y-6">
           {/* Target Time Input Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Target Marathon Time</CardTitle>
+          <Card className="overflow-hidden">
+            <CardHeader className="px-4 py-4 sm:p-6">
+              <CardTitle className="text-lg">Target Marathon Time</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <Label htmlFor="hour">Hours</Label>
-                  <Select value={targetHours} onValueChange={setTargetHours}>
-                    <SelectTrigger id="hour">
-                      <SelectValue placeholder="Hours" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {hoursOptions.map(hour => (
-                        <SelectItem key={hour} value={hour}>{hour}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      id="hour"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={targetHours}
+                      onChange={handleHoursChange}
+                      className="text-center"
+                      placeholder="H"
+                    />
+                    <Select value={targetHours} onValueChange={setTargetHours}>
+                      <SelectTrigger className="w-20 flex-shrink-0">
+                        <SelectValue placeholder="H" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {hoursOptions.map(hour => (
+                          <SelectItem key={hour} value={hour}>{hour}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="minute">Minutes</Label>
-                  <Select value={targetMinutes} onValueChange={setTargetMinutes}>
-                    <SelectTrigger id="minute">
-                      <SelectValue placeholder="Minutes" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {minutesOptions.map(minute => (
-                        <SelectItem key={minute} value={minute}>{minute}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      id="minute"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={targetMinutes}
+                      onChange={handleMinutesChange}
+                      className="text-center"
+                      placeholder="M"
+                      maxLength={2}
+                    />
+                    <Select value={targetMinutes} onValueChange={setTargetMinutes}>
+                      <SelectTrigger className="w-20 flex-shrink-0">
+                        <SelectValue placeholder="M" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {minutesOptions.map(minute => (
+                          <SelectItem key={minute} value={minute}>{minute}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="second">Seconds</Label>
-                  <Select value={targetSeconds} onValueChange={setTargetSeconds}>
-                    <SelectTrigger id="second">
-                      <SelectValue placeholder="Seconds" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {secondsOptions.map(second => (
-                        <SelectItem key={second} value={second}>{second}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      id="second"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={targetSeconds}
+                      onChange={handleSecondsChange}
+                      className="text-center"
+                      placeholder="S"
+                      maxLength={2}
+                    />
+                    <Select value={targetSeconds} onValueChange={setTargetSeconds}>
+                      <SelectTrigger className="w-20 flex-shrink-0">
+                        <SelectValue placeholder="S" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {secondsOptions.map(second => (
+                          <SelectItem key={second} value={second}>{second}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
               <Button 
@@ -277,33 +315,29 @@ export default function Home() {
         </div>
         
         {/* Right Column: Segment Pace Editor */}
-        <div className="lg:col-span-8 space-y-6">
+        <div className="lg:col-span-8 space-y-4 sm:space-y-6">
           {/* Hero Section */}
-          <div className="relative rounded-xl overflow-hidden h-56 md:h-64">
-            <div 
-              className="w-full h-full bg-cover bg-center" 
-              style={{
-                backgroundImage: "url('https://images.unsplash.com/photo-1530137234525-770c4962e0cc?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80')"
-              }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-primary-900/80 to-transparent flex items-center">
-              <div className="px-6 md:px-10 py-4 text-white">
-                <h2 className="text-2xl md:text-3xl font-display font-bold">Pace Strategy</h2>
-                <p className="mt-2 max-w-md">Fine-tune your segment paces to achieve your marathon goal</p>
+          <div className="relative rounded-xl overflow-hidden h-40 sm:h-56 md:h-64">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary-900/90 to-blue-600/80 flex items-center">
+              <div className="px-4 sm:px-6 md:px-10 py-4 text-white">
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-display font-bold">Pace Strategy</h2>
+                <p className="mt-1 sm:mt-2 text-sm sm:text-base max-w-md">Fine-tune your segment paces to achieve your marathon goal</p>
               </div>
             </div>
           </div>
 
-          {/* Segments Editor */}
-          <SegmentTable 
-            segments={segments}
-            onUpdateSegment={handleUpdateSegment}
-            onUpdateRemainingSegments={handleUpdateRemainingSegments}
-          />
+          {/* Segments Editor - Mobile Responsive */}
+          <div className="overflow-x-auto">
+            <SegmentTable 
+              segments={segments}
+              onUpdateSegment={handleUpdateSegment}
+              onUpdateRemainingSegments={handleUpdateRemainingSegments}
+            />
+          </div>
 
-          {/* Pace Distribution Chart */}
-          <Card>
-            <CardContent className="pt-6">
+          {/* Pace Distribution Chart - Mobile Responsive */}
+          <Card className="overflow-hidden">
+            <CardContent className="pt-4 sm:pt-6 px-2 sm:px-6">
               <PaceChart 
                 segments={segments}
                 targetTime={targetTime}
@@ -311,9 +345,9 @@ export default function Home() {
             </CardContent>
           </Card>
           
-          {/* Export Plan as Image */}
-          <Card>
-            <CardContent className="pt-6">
+          {/* Export Plan as Image - Mobile Responsive */}
+          <Card className="overflow-hidden">
+            <CardContent className="pt-4 sm:pt-6 px-2 sm:px-6">
               <ExportImage 
                 segments={segments}
                 targetTime={targetTime}
