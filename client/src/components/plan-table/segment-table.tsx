@@ -63,10 +63,10 @@ export function SegmentTable({ segments, onUpdateSegment, onUpdateRemainingSegme
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
-      <div className="p-5 border-b border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-display font-semibold">Segment Pace Editor</h3>
+      <div className="p-4 sm:p-5 border-b border-gray-200 dark:border-gray-700">
+        <h3 className="text-lg font-display font-semibold">Segment Editor</h3>
         <p className="text-sm text-muted-foreground mt-1">
-          Adjust each 5km segment pace using the selector or buttons
+          Tap on each pace to adjust values
         </p>
       </div>
       
@@ -74,10 +74,8 @@ export function SegmentTable({ segments, onUpdateSegment, onUpdateRemainingSegme
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Segment</TableHead>
               <TableHead>Distance</TableHead>
-              <TableHead>Target Pace</TableHead>
-              <TableHead>Custom Pace</TableHead>
+              <TableHead>Pace</TableHead>
               <TableHead>Segment Time</TableHead>
               <TableHead>Cumulative Time</TableHead>
             </TableRow>
@@ -85,43 +83,16 @@ export function SegmentTable({ segments, onUpdateSegment, onUpdateRemainingSegme
           <TableBody>
             {segments.map((segment, index) => (
               <TableRow key={segment.id}>
-                <TableCell className="font-medium">{segment.name}</TableCell>
                 <TableCell className="text-muted-foreground">{segment.distance}</TableCell>
-                <TableCell className="text-muted-foreground">{segment.targetPace}</TableCell>
                 <TableCell>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleAdjustPace(index, 1)}
-                      title="Slower pace (add 1 second)"
-                    >
-                      <Minus className="h-4 w-4" />
-                    </Button>
+                  <div className="flex items-center">
                     <div 
-                      className="w-20 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-center font-medium cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600"
+                      className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-center font-medium cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600"
                       onClick={() => handleOpenPaceWheel(index)}
                       title="Click to adjust pace"
                     >
                       {segment.customPace}
                     </div>
-                    <Button
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => handleAdjustPace(index, -1)}
-                      title="Faster pace (subtract 1 second)"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-primary hover:text-primary/80"
-                      onClick={() => handleOpenPaceWheel(index)}
-                      title="Open pace wheel selector"
-                    >
-                      <Sliders className="h-4 w-4" />
-                    </Button>
                   </div>
                 </TableCell>
                 <TableCell>{segment.segmentTime}</TableCell>

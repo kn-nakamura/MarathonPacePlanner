@@ -38,6 +38,12 @@ export function formatTime(hours: number, minutes: number, seconds: number): str
  * Formats a pace as MM:SS/km
  */
 export function formatPace(minutes: number, seconds: number): string {
+  // Format properly when seconds >= 60
+  if (seconds >= 60) {
+    const additionalMinutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes + additionalMinutes}:${remainingSeconds.toString().padStart(2, '0')}/km`;
+  }
   return `${minutes}:${seconds.toString().padStart(2, '0')}/km`;
 }
 

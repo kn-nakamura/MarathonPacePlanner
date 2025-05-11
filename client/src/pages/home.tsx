@@ -84,7 +84,21 @@ export default function Home() {
   // Generate plan based on target time
   const generatePlan = () => {
     // Calculate default pace from target time
-    const defaultPace = calculatePace(targetTime, 42.2);
+    // First calculate the total seconds for the target time
+    const [hours, minutes, seconds] = targetTime.split(':').map(Number);
+    const totalTargetSeconds = hours * 3600 + minutes * 60 + seconds;
+    
+    // Apply a slight buffer to ensure we finish under target time (0.5% faster)
+    const bufferFactor = 0.995;
+    const adjustedTotalSeconds = totalTargetSeconds * bufferFactor;
+    
+    // Calculate pace in seconds per km
+    const paceSecondsPerKm = adjustedTotalSeconds / 42.2;
+    
+    // Convert to MM:SS/km format
+    const paceMinutes = Math.floor(paceSecondsPerKm / 60);
+    const paceSeconds = Math.round(paceSecondsPerKm % 60);
+    const defaultPace = `${paceMinutes}:${paceSeconds.toString().padStart(2, '0')}/km`;
     
     // Create new segments with calculated pace
     const newSegments = segments.map((segment, index) => {
@@ -195,7 +209,8 @@ export default function Home() {
   const hoursOptions = Array.from({ length: 7 }, (_, i) => i.toString());
   // Minutes options from 0 to 59 (1 minute increments)
   const minutesOptions = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
-  const secondsOptions = ['00', '15', '30', '45'];
+  // Seconds options from 0 to 59 (1 second increments)
+  const secondsOptions = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6">
