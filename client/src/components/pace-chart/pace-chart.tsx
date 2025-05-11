@@ -113,6 +113,11 @@ export function PaceChart({ segments, targetTime }: PaceChartProps) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
+  // Calculate min and max pace values for y-axis (with padding)
+  const paceValues = chartData.flatMap(d => [d.pace, d.targetPace]);
+  const minPaceValue = Math.max(0, Math.min(...paceValues) - 15); // Add padding, but don't go below 0
+  const maxPaceValue = Math.max(...paceValues) + 15; // Add padding
+  
   // Custom label component for cumulative times
   const CustomizedLabel = (props: any) => {
     const { x, y, value, index } = props;
@@ -181,11 +186,17 @@ export function PaceChart({ segments, targetTime }: PaceChartProps) {
               label={{ 
                 value: 'min/km', 
                 angle: -90, 
-                position: 'insideLeft' 
+                position: 'insideLeft',
+                style: { 
+                  textAnchor: 'middle',
+                  fontSize: isMobile ? 10 : 12,
+                  fill: document.documentElement.classList.contains('dark') ? '#d1d5db' : '#4b5563'
+                }
               }}
-              domain={['auto', 'auto']}
+              domain={[minPaceValue, maxPaceValue]}
               // Invert the axis so lower pace (faster) is higher on the chart
               reversed
+              tickCount={isMobile ? 4 : 6}
               tickFormatter={(value) => {
                 const min = Math.floor(value / 60);
                 const sec = Math.round(value % 60);
