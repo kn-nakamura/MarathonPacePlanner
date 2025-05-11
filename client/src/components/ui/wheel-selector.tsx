@@ -6,9 +6,18 @@ interface WheelSelectorProps {
   value: string | number;
   onChange: (value: string | number) => void;
   className?: string;
+  itemHeight?: number;
+  height?: number;
 }
 
-export function WheelSelector({ options, value, onChange, className }: WheelSelectorProps) {
+export function WheelSelector({ 
+  options, 
+  value, 
+  onChange, 
+  className,
+  itemHeight = 50,
+  height = 250 
+}: WheelSelectorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scrolling, setScrolling] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -23,8 +32,8 @@ export function WheelSelector({ options, value, onChange, className }: WheelSele
     const container = containerRef.current;
     if (!container || scrolling || isDragging) return;
 
-    // Scroll to the selected option (50px per option)
-    const targetScrollTop = selectedIndex * 50;
+    // Scroll to the selected option using the itemHeight property
+    const targetScrollTop = selectedIndex * itemHeight;
     container.scrollTop = targetScrollTop;
   }, [selectedIndex, scrolling, isDragging]);
 
@@ -92,8 +101,7 @@ export function WheelSelector({ options, value, onChange, className }: WheelSele
     if (!container) return;
     
     const scrollPosition = container.scrollTop;
-    const optionHeight = 50;
-    const index = Math.round(scrollPosition / optionHeight);
+    const index = Math.round(scrollPosition / itemHeight);
     
     if (index >= 0 && index < options.length) {
       onChange(options[index]);
@@ -105,8 +113,7 @@ export function WheelSelector({ options, value, onChange, className }: WheelSele
     if (!container) return;
     
     const scrollPosition = container.scrollTop;
-    const optionHeight = 50;
-    const index = Math.round(scrollPosition / optionHeight);
+    const index = Math.round(scrollPosition / itemHeight);
     
     if (index >= 0 && index < options.length) {
       // Smooth scroll to the exact option position

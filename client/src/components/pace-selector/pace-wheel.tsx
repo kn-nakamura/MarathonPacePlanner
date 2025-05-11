@@ -176,21 +176,27 @@ export function PaceWheel({
           </div>
         </div>
         
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-muted-foreground">Current Pace:</span>
-          <span className="text-xl font-semibold text-primary-600 dark:text-primary-400">{currentPace}</span>
+        <div className="p-3 sm:p-4 bg-gray-100 dark:bg-gray-800 rounded-md mb-4">
+          <div className="grid grid-cols-2 gap-2 sm:gap-4">
+            <div>
+              <p className="text-xs sm:text-sm text-muted-foreground">Current Pace:</p>
+              <p className="text-lg sm:text-xl font-semibold text-primary-600 dark:text-primary-400">{currentPace}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">{milePace}</p>
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm text-muted-foreground">Segment Time:</p>
+              <p className="text-lg sm:text-xl font-semibold">{segmentTime}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">For {segmentDistance}km</p>
+            </div>
+          </div>
         </div>
         
-        <div className="flex justify-between items-center text-sm text-muted-foreground mb-4">
-          <span>{milePace}</span>
-          <span>Segment time: {segmentTime}</span>
-        </div>
-        
-        <DialogFooter className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 space-x-0 sm:space-x-2">
+        <DialogFooter className={`${isMobile ? 'flex-col space-y-2' : 'sm:flex-row sm:space-y-0 sm:space-x-2'}`}>
           <Button
             type="button"
             onClick={handleApplyPace}
-            className="flex-1"
+            className={isMobile ? "w-full" : "flex-1"}
+            size={isMobile ? "sm" : "default"}
           >
             Apply to Segment
           </Button>
@@ -200,7 +206,8 @@ export function PaceWheel({
               type="button"
               onClick={handleApplyToAll}
               variant="secondary"
-              className="flex-1"
+              className={isMobile ? "w-full" : "flex-1"}
+              size={isMobile ? "sm" : "default"}
             >
               Apply to All Remaining
             </Button>
