@@ -23,6 +23,7 @@ export function PaceWheel({
   onSaveAllRemaining,
   segmentDistance = 5
 }: PaceWheelProps) {
+  const isMobile = useIsMobile();
   // Parse initial pace (e.g., "4:30/km") into minutes and seconds
   const [minutes, seconds] = initialPace.split('/')[0].split(':').map(Number);
   
@@ -31,9 +32,9 @@ export function PaceWheel({
   const [minutesInput, setMinutesInput] = useState<string>(String(minutes || 4));
   const [secondsInput, setSecondsInput] = useState<string>(String(seconds || 0).padStart(2, '0'));
   
-  // Generate wheel options
+  // Generate wheel options with 1-second increments
   const minutesOptions = Array.from({ length: 10 }, (_, i) => i + 3); // 3 to 12 minutes
-  const secondsOptions = Array.from({ length: 12 }, (_, i) => i * 5); // 0 to 55 seconds, steps of 5
+  const secondsOptions = Array.from({ length: 60 }, (_, i) => i); // 0 to 59 seconds, 1-second steps
   
   // Format seconds with leading zero
   const formattedSecondsOptions = secondsOptions.map(s => s.toString().padStart(2, '0'));
@@ -118,22 +119,24 @@ export function PaceWheel({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className={isMobile ? "max-w-[95%] p-4" : "sm:max-w-md"}>
         <DialogHeader>
           <DialogTitle>Adjust Pace</DialogTitle>
-          <DialogDescription>
-            Use the wheel selector or type directly to adjust your pace.
+          <DialogDescription className="text-xs sm:text-sm">
+            Fine-tune your pace with 1-second precision.
           </DialogDescription>
         </DialogHeader>
         
-        <div className="flex mb-6 space-x-4">
+        <div className="flex mb-4 sm:mb-6 space-x-2 sm:space-x-4">
           <div className="w-1/2">
-            <label className="block text-sm font-medium mb-1">Minutes</label>
+            <label className="block text-xs sm:text-sm font-medium mb-1">Minutes</label>
             <div className="space-y-2">
               <WheelSelector 
                 options={minutesOptions}
                 value={selectedMinutes}
                 onChange={handleWheelMinutesChange}
+                itemHeight={isMobile ? 28 : 36}
+                height={isMobile ? 140 : 180}
               />
               <Input
                 type="text"
@@ -141,7 +144,7 @@ export function PaceWheel({
                 pattern="[0-9]*"
                 value={minutesInput}
                 onChange={handleMinutesChange}
-                className="text-center"
+                className="text-center h-8 sm:h-10 text-sm sm:text-base"
                 placeholder="Min"
                 aria-label="Minutes"
               />
@@ -149,12 +152,14 @@ export function PaceWheel({
           </div>
           
           <div className="w-1/2">
-            <label className="block text-sm font-medium mb-1">Seconds</label>
+            <label className="block text-xs sm:text-sm font-medium mb-1">Seconds</label>
             <div className="space-y-2">
               <WheelSelector 
                 options={formattedSecondsOptions}
                 value={selectedSeconds.toString().padStart(2, '0')}
                 onChange={handleWheelSecondsChange}
+                itemHeight={isMobile ? 28 : 36}
+                height={isMobile ? 140 : 180}
               />
               <Input
                 type="text"
@@ -162,7 +167,7 @@ export function PaceWheel({
                 pattern="[0-9]*"
                 value={secondsInput}
                 onChange={handleSecondsChange}
-                className="text-center"
+                className="text-center h-8 sm:h-10 text-sm sm:text-base"
                 placeholder="Sec"
                 aria-label="Seconds"
                 maxLength={2}
