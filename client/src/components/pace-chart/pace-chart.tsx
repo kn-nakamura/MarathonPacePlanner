@@ -113,22 +113,30 @@ export function PaceChart({ segments, targetTime }: PaceChartProps) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // Custom label render for cumulative times (responsive for mobile)
-  const renderCustomizedLabel = (props: any) => {
+  // Custom label component for cumulative times
+  const CustomizedLabel = (props: any) => {
     const { x, y, value, index } = props;
-    const cumulativeTime = chartData[index]?.cumulativeTime;
     
-    // Skip labels for readability on mobile
-    if (isMobile) {
-      // Only show for first, last, and every 2nd point
-      if (index !== 0 && index !== chartData.length - 1 && index % 2 !== 0) {
-        return "";
-      }
+    // Skip some points on mobile to avoid overcrowding
+    if (isMobile && index !== 0 && index !== chartData.length - 1 && index % 2 !== 0) {
+      return null;
     }
     
-    if (!cumulativeTime) return "";
+    const cumulativeTime = chartData[index]?.cumulativeTime;
+    if (!cumulativeTime) return null;
     
-    return cumulativeTime;
+    return (
+      <Text
+        x={x}
+        y={y - 15}
+        fill="#82ca9d"
+        fontSize={isMobile ? 8 : 10}
+        textAnchor="middle"
+        verticalAnchor="middle"
+      >
+        {cumulativeTime}
+      </Text>
+    );
   };
 
   return (
@@ -214,25 +222,7 @@ export function PaceChart({ segments, targetTime }: PaceChartProps) {
               name="Pace" 
               strokeWidth={2}
               dot={{ r: 4 }}
-              label={{
-                position: 'top',
-                formatter: (value: any, entry: any, index: number) => {
-                  // Only show on selected points based on screen size
-                  const dataEntry = chartData[index];
-                  if (!dataEntry?.cumulativeTime) return '';
-                  
-                  if (isMobile) {
-                    // On mobile, only show for first, last, and every 2nd point
-                    if (index !== 0 && index !== chartData.length - 1 && index % 2 !== 0) {
-                      return '';
-                    }
-                  }
-                  
-                  return dataEntry.cumulativeTime;
-                },
-                fontSize: isMobile ? 8 : 10,
-                fill: '#82ca9d'
-              }}
+              label={<CustomizedLabel />}
             />
           </LineChart>
         </ResponsiveContainer>

@@ -1,9 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Segment } from '@/models/pace';
-import { formatTime, findFastestAndSlowestSegments } from '@/utils/pace-utils';
-import { Save, Share2 } from 'lucide-react';
+import { formatTime, findFastestAndSlowestSegments, calculateCumulativeTimes } from '@/utils/pace-utils';
+import { Save, Share2, Clock, Award, ArrowDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface SummaryCardProps {
   segments: Segment[];
