@@ -1,20 +1,19 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { SegmentTable } from '@/components/plan-table/segment-table';
 import { SummaryCard } from '@/components/result-summary/summary-card';
+import { PaceChart } from '@/components/pace-chart/pace-chart';
+import { ExportImage } from '@/components/pace-chart/export-image';
 import { DEFAULT_SEGMENTS, Segment, PacePlan } from '@/models/pace';
 import { usePaceConverter } from '@/hooks/use-pace-converter';
 import { formatTime, calculateTotalTime, calculateAveragePace } from '@/utils/pace-utils';
 import { apiRequest } from '@/lib/queryClient';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Share2, ChevronRight } from 'lucide-react';
-import { Link } from 'wouter';
-import { useAuth } from '@/contexts/auth-context';
 
 export default function Home() {
   const [targetHours, setTargetHours] = useState<string>("3");
@@ -24,14 +23,7 @@ export default function Home() {
   const [planName, setPlanName] = useState<string>("");
   const { calculatePace, calculateTime } = usePaceConverter();
   const { toast } = useToast();
-  const { user } = useAuth();
   
-  // Query saved plans if user is logged in
-  const { data: savedPlans } = useQuery({
-    queryKey: ['/api/pace-plans'],
-    enabled: !!user,
-  });
-
   // Format the target time
   const targetTime = `${targetHours}:${targetMinutes}:${targetSeconds}`;
 
@@ -115,50 +107,38 @@ export default function Home() {
     setSegments(newSegments);
   };
 
-  // Save plan mutation
-  const savePlanMutation = useMutation({
-    mutationFn: async (plan: PacePlan) => {
-      const response = await apiRequest('POST', '/api/pace-plans', plan);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/pace-plans'] });
+  // Handle saving the current plan
+  const handleSavePlan = () => {
+    // Generate a name if none was provided
+    const name = planName || `Marathon Plan ${targetTime}`;
+    
+    try {
+      // Create the plan object
+      const plan: PacePlan = {
+        name,
+        targetTime,
+        segments,
+        totalTime
+      };
+      
+      // Convert plan to JSON for local storage
+      const planJson = JSON.stringify(plan);
+      
+      // Save to local storage instead of server
+      localStorage.setItem(`pace-plan-${Date.now()}`, planJson);
+      
       toast({
         title: "Plan Saved",
-        description: "Your pace strategy has been saved successfully.",
+        description: "Your pace strategy has been saved to your browser.",
       });
-    },
-    onError: (error) => {
+    } catch (error) {
       toast({
         title: "Error Saving Plan",
         description: "There was an error saving your plan. Please try again.",
         variant: "destructive",
       });
+      console.error('Error saving plan:', error);
     }
-  });
-
-  // Handle saving the current plan
-  const handleSavePlan = () => {
-    if (!user) {
-      toast({
-        title: "Login Required",
-        description: "Please login to save your pace plan.",
-      });
-      return;
-    }
-    
-    // Generate a name if none was provided
-    const name = planName || `Marathon Plan ${targetTime}`;
-    
-    // Create plan object
-    const plan: PacePlan = {
-      name,
-      targetTime,
-      segments,
-      totalTime
-    };
-    
-    savePlanMutation.mutate(plan);
   };
 
   // Hours, minutes, seconds options for selects
@@ -243,40 +223,7 @@ export default function Home() {
             onSavePlan={handleSavePlan}
           />
           
-          {/* Saved Plans Card */}
-          {user && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Saved Plans</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {savedPlans?.length > 0 ? (
-                  savedPlans.map((plan: PacePlan) => (
-                    <div 
-                      key={plan.id} 
-                      className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer"
-                    >
-                      <div>
-                        <h4 className="font-medium">{plan.name}</h4>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {plan.totalTime} ({calculateAveragePace(plan.totalTime, 42.2)})
-                        </p>
-                      </div>
-                      <Link href={`/saved-plans/${plan.id}`}>
-                        <Button variant="ghost" size="icon">
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-4 text-muted-foreground">
-                    No saved plans yet. Create and save your first plan!
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+
         </div>
         
         {/* Right Column: Segment Pace Editor */}
@@ -304,35 +251,25 @@ export default function Home() {
             onUpdateRemainingSegments={handleUpdateRemainingSegments}
           />
 
-          {/* Pace Distribution Chart - placeholder */}
+          {/* Pace Distribution Chart */}
           <Card>
-            <CardHeader>
-              <CardTitle>Pace Distribution</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                <div className="text-center text-muted-foreground">
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="48"
-                    height="48"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mx-auto mb-2"
-                  >
-                    <path d="M3 3v18h18"></path>
-                    <path d="M3 9h18"></path>
-                    <path d="M3 15h18"></path>
-                    <path d="M9 3v18"></path>
-                    <path d="M15 3v18"></path>
-                  </svg>
-                  <p>Pace distribution chart visualization</p>
-                </div>
-              </div>
+            <CardContent className="pt-6">
+              <PaceChart 
+                segments={segments}
+                targetTime={targetTime}
+              />
+            </CardContent>
+          </Card>
+          
+          {/* Export Plan as Image */}
+          <Card>
+            <CardContent className="pt-6">
+              <ExportImage 
+                segments={segments}
+                targetTime={targetTime}
+                totalTime={totalTime}
+                averagePace={averagePace}
+              />
             </CardContent>
           </Card>
           
