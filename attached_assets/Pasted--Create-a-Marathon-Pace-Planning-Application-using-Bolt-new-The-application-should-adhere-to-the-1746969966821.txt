@@ -1,0 +1,78 @@
+
+⸻
+
+Create a Marathon Pace Planning Application using Bolt.new. The application should adhere to the following specifications:
+
+⸻
+
+Objective:
+
+Help runners plan and customize their marathon pace distribution. The app allows users to input a target finish time and generates initial pace settings for each 5km segment. Users can adjust each segment’s pace individually, and the app dynamically updates the total time.
+
+⸻
+
+Features:
+	1.	Core Functionalities:
+	•	Input target marathon time (e.g., 3 hours 30 minutes).
+	•	Auto-generate default pace for each 5km segment.
+	•	Display and allow custom editing of pace per segment in “mm:ss/km” format (e.g., 4’20”/km).
+	•	Automatically recalculate total marathon time when segment paces are modified.
+	•	Wheel-based UI for selecting pace per segment.
+	2.	Additional Features:
+	•	Dark mode toggle.
+	•	Save and load user pace plans for comparison and tracking.
+	3.	Technology Integration:
+	•	Use Supabase for:
+	•	User authentication.
+	•	Plan storage and retrieval.
+	•	Pace conversion utilities between “mm:ss/km” and seconds.
+	4.	Workflow and Data Organization:
+	•	Modular project structure:
+
+src/
+├── components/
+│   ├── pace-selector/  # Wheel-style UI for pace input
+│   ├── plan-table/     # Pace list per segment
+│   ├── result-summary/ # Total time display
+├── hooks/              # Custom hooks like usePaceConverter
+├── models/             # Type definitions for Pace, Segment, Plan
+├── utils/              # Helper functions (e.g., pace format conversion)
+├── services/           # Supabase integration
+└── config/             # Theme and settings
+
+
+
+⸻
+
+Development Workflow:
+	1.	Project Setup:
+	•	Initialize with Vite and Tailwind CSS.
+	•	Install dependencies:
+
+npm create vite@latest pace-planner -- --template react
+cd pace-planner
+npm install @headlessui/react clsx react-hot-toast
+npx tailwindcss init -p
+
+
+	2.	Modular Implementation:
+	1.	Create pace conversion utilities.
+	2.	Implement editable pace segments UI.
+	3.	Calculate and display total time dynamically.
+	4.	Handle target time input and generate default paces.
+	5.	Integrate user saving/loading with Supabase.
+	3.	Testing:
+	•	Use Jest for logic validation (pace conversion, total time).
+	•	Use Cypress for UI and integration tests.
+	4.	Deployment:
+	•	Deploy to Netlify or Vercel.
+	•	Optimize performance and responsiveness for mobile use.
+
+⸻
+
+Success Metrics:
+	1.	Performance: Less than 1 second response on pace adjustments.
+	2.	Accuracy: Total time reflects real-time pace changes.
+	3.	Usability: Intuitive pace editing and selection UX.
+
+⸻
