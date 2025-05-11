@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface WheelSelectorProps {
   options: string[] | number[];
@@ -18,6 +19,7 @@ export function WheelSelector({
   itemHeight = 50,
   height = 250 
 }: WheelSelectorProps) {
+  const isMobile = useIsMobile();
   const containerRef = useRef<HTMLDivElement>(null);
   const [scrolling, setScrolling] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -118,7 +120,7 @@ export function WheelSelector({
     if (index >= 0 && index < options.length) {
       // Smooth scroll to the exact option position
       container.scrollTo({
-        top: index * optionHeight,
+        top: index * itemHeight,
         behavior: 'smooth'
       });
       
@@ -135,22 +137,23 @@ export function WheelSelector({
     const container = containerRef.current;
     if (container && index >= 0) {
       container.scrollTo({
-        top: index * 50,
+        top: index * itemHeight,
         behavior: 'smooth'
       });
     }
   };
 
   return (
-    <div className="relative h-40 border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
+    <div className="relative border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden" style={{ height }}>
       <div 
         ref={containerRef}
         className={cn(
           "wheel-selector scroll-smooth", 
-          "overflow-y-auto h-40 scrollbar-none snap-y snap-mandatory",
+          "overflow-y-auto scrollbar-none snap-y snap-mandatory",
           className,
           isDragging ? "cursor-grabbing" : "cursor-grab"
         )}
+        style={{ height }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -159,27 +162,35 @@ export function WheelSelector({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <div className="h-[50px]"></div> {/* Top spacer */}
+        <div style={{ height: itemHeight }}></div> {/* Top spacer */}
         {options.map((option, index) => (
           <div 
             key={index}
             className={cn(
-              "wheel-option snap-center h-[50px] flex items-center justify-center",
-              "text-base font-medium",
+              "wheel-option snap-center flex items-center justify-center",
+              isMobile ? "text-sm" : "text-base", 
+              "font-medium",
               value === option 
                 ? "text-primary-600 dark:text-primary-400" 
                 : "text-gray-700 dark:text-gray-300"
             )}
+            style={{ height: itemHeight }}
             onClick={() => handleOptionClick(option)}
           >
             {option}
           </div>
         ))}
-        <div className="h-[50px]"></div> {/* Bottom spacer */}
+        <div style={{ height: itemHeight }}></div> {/* Bottom spacer */}
       </div>
       
       {/* Selection indicator */}
-      <div className="absolute left-0 right-0 top-1/2 -mt-[25px] h-[50px] pointer-events-none border-t border-b border-primary-200 dark:border-primary-700"></div>
+      <div 
+        className="absolute left-0 right-0 top-1/2 pointer-events-none border-t border-b border-primary-200 dark:border-primary-700"
+        style={{ 
+          marginTop: -(itemHeight/2), 
+          height: itemHeight 
+        }}
+      ></div>
     </div>
   );
 }
