@@ -10,7 +10,8 @@ import {
   Legend, 
   ResponsiveContainer,
   ReferenceLine,
-  Label
+  Label,
+  Text
 } from 'recharts';
 import { paceToSeconds, secondsToPace, calculateCumulativeTimes } from '@/utils/pace-utils';
 import { toPng } from 'html-to-image';
@@ -60,8 +61,10 @@ export function PaceChart({ segments, targetTime }: PaceChartProps) {
 
   // Custom tooltip formatter
   const paceTooltipFormatter = (value: number, name: string) => {
-    if (name === 'pace' || name === 'targetPace') {
+    if (name === 'pace') {
       return secondsToPace(value);
+    } else if (name === 'targetPace') {
+      return secondsToPace(value) + ' (target)'; 
     }
     return value;
   };
@@ -97,23 +100,35 @@ export function PaceChart({ segments, targetTime }: PaceChartProps) {
     }
   };
 
-  // Custom label render for cumulative times
+  // Mobile detection state
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  // Update mobile state on resize
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  // Custom label render for cumulative times (responsive for mobile)
   const renderCustomizedLabel = (props: any) => {
     const { x, y, value, index } = props;
     const cumulativeTime = chartData[index]?.cumulativeTime;
     
-    return (
-      <text 
-        x={x} 
-        y={y - 15} 
-        fill="#82ca9d" 
-        fontSize={10} 
-        textAnchor="middle"
-        dominantBaseline="middle"
-      >
-        {cumulativeTime}
-      </text>
-    );
+    // Skip labels for readability on mobile
+    if (isMobile) {
+      // Only show for first, last, and every 2nd point
+      if (index !== 0 && index !== chartData.length - 1 && index % 2 !== 0) {
+        return "";
+      }
+    }
+    
+    if (!cumulativeTime) return "";
+    
+    return cumulativeTime;
   };
 
   return (
@@ -156,13 +171,18 @@ export function PaceChart({ segments, targetTime }: PaceChartProps) {
             />
             <YAxis 
               label={{ 
-                value: 'Pace (seconds/km)', 
+                value: 'min/km', 
                 angle: -90, 
                 position: 'insideLeft' 
               }}
               domain={['auto', 'auto']}
               // Invert the axis so lower pace (faster) is higher on the chart
               reversed
+              tickFormatter={(value) => {
+                const min = Math.floor(value / 60);
+                const sec = Math.round(value % 60);
+                return `${min}:${sec.toString().padStart(2, '0')}`;
+              }}
             />
             <Tooltip 
               formatter={paceTooltipFormatter}
@@ -191,10 +211,28 @@ export function PaceChart({ segments, targetTime }: PaceChartProps) {
               type="monotone" 
               dataKey="pace" 
               stroke="#82ca9d" 
-              name="Custom Pace" 
+              name="Pace" 
               strokeWidth={2}
               dot={{ r: 4 }}
-              label={renderCustomizedLabel}
+              label={{
+                position: 'top',
+                formatter: (value: any, entry: any, index: number) => {
+                  // Only show on selected points based on screen size
+                  const dataEntry = chartData[index];
+                  if (!dataEntry?.cumulativeTime) return '';
+                  
+                  if (isMobile) {
+                    // On mobile, only show for first, last, and every 2nd point
+                    if (index !== 0 && index !== chartData.length - 1 && index % 2 !== 0) {
+                      return '';
+                    }
+                  }
+                  
+                  return dataEntry.cumulativeTime;
+                },
+                fontSize: isMobile ? 8 : 10,
+                fill: '#82ca9d'
+              }}
             />
           </LineChart>
         </ResponsiveContainer>
