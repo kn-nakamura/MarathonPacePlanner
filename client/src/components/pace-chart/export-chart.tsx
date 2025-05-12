@@ -33,13 +33,13 @@ export function ExportChart({ segments, targetTime }: ExportChartProps) {
       link.click();
       
       toast({
-        title: '画像として保存しました',
-        description: 'ペースチャートを画像としてダウンロードしました',
+        title: 'Chart Saved',
+        description: 'Pace chart downloaded as image successfully',
       });
     } catch (err) {
       toast({
-        title: 'エラー',
-        description: '画像保存に失敗しました',
+        title: 'Error',
+        description: 'Failed to save chart as image',
         variant: 'destructive',
       });
       console.error('Error saving image:', err);
@@ -53,7 +53,7 @@ export function ExportChart({ segments, targetTime }: ExportChartProps) {
         onClick={exportAsImage}
         className="mb-4"
       >
-        ペースチャートを画像として保存
+        Save as Image
       </Button>
       
       <div 

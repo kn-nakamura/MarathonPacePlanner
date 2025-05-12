@@ -339,22 +339,16 @@ export default function Home() {
             </CardContent>
           </Card>
           
-          {/* Pace Chart */}
+          {/* Save Plan Controls */}
           <Card>
             <CardHeader>
-              <CardTitle>Pace Distribution</CardTitle>
+              <CardTitle>Save Your Plan</CardTitle>
             </CardHeader>
             <CardContent>
-              {/* ペースチャート */}
-              <PaceChart 
-                segments={segments}
-                targetTime={targetTime}
-              />
-              
-              <div className="flex justify-between mt-6">
-                <div className="flex-1 max-w-sm">
+              <div className="flex flex-col md:flex-row md:justify-between gap-4">
+                <div className="flex-1 max-w-md">
                   <Input
-                    placeholder="Plan name (for saving)"
+                    placeholder="Enter a name for your plan"
                     value={planName}
                     onChange={(e) => setPlanName(e.target.value)}
                     className="w-full"

@@ -43,13 +43,13 @@ export function ExportSegmentTable({
       link.click();
       
       toast({
-        title: '画像として保存しました',
-        description: 'ペースプランを画像としてダウンロードしました',
+        title: 'Image Saved',
+        description: 'Pace plan was successfully downloaded as an image',
       });
     } catch (err) {
       toast({
-        title: 'エラー',
-        description: '画像保存に失敗しました',
+        title: 'Error',
+        description: 'Failed to save image',
         variant: 'destructive',
       });
       console.error('Error saving image:', err);
@@ -63,7 +63,7 @@ export function ExportSegmentTable({
         onClick={exportAsImage}
         className="mb-4"
       >
-        ペースプランを画像として保存
+        Export as Image
       </Button>
       
       <div className="hidden">
@@ -78,15 +78,15 @@ export function ExportSegmentTable({
           <div className="mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <div className="text-sm text-muted-foreground">目標タイム:</div>
+                <div className="text-sm text-muted-foreground">Target Time:</div>
                 <div className="text-lg font-semibold">{targetTime}</div>
               </div>
               <div>
-                <div className="text-sm text-muted-foreground">予測タイム:</div>
+                <div className="text-sm text-muted-foreground">Actual Time:</div>
                 <div className="text-lg font-semibold">{totalTime}</div>
               </div>
               <div>
-                <div className="text-sm text-muted-foreground">平均ペース:</div>
+                <div className="text-sm text-muted-foreground">Avg Pace:</div>
                 <div className="text-lg font-semibold">{averagePace}</div>
               </div>
             </div>
@@ -97,10 +97,10 @@ export function ExportSegmentTable({
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
-                  <th className="py-2 px-3 text-left font-medium">距離</th>
-                  <th className="py-2 px-3 text-left font-medium">ペース</th>
-                  <th className="py-2 px-3 text-left font-medium">区間</th>
-                  <th className="py-2 px-3 text-left font-medium">通過</th>
+                  <th className="py-2 px-3 text-left font-medium">Distance</th>
+                  <th className="py-2 px-3 text-left font-medium">Pace</th>
+                  <th className="py-2 px-3 text-left font-medium">Segment Time</th>
+                  <th className="py-2 px-3 text-left font-medium">Cumulative</th>
                 </tr>
               </thead>
               <tbody>
