@@ -277,7 +277,7 @@ export default function Home() {
                         <WheelSelector
                           options={Array.from({ length: 7 }, (_, i) => ({ value: i + 3, label: String(i + 3) }))}
                           value={Number(averagePaceInput.split(':')[0]) || 4}
-                          onChange={(val) => {
+                          onChange={(val: string | number) => {
                             const seconds = averagePaceInput.split(':')[1] || '00';
                             setAveragePaceInput(`${val}:${seconds}`);
                           }}
@@ -286,7 +286,7 @@ export default function Home() {
                         <WheelSelector
                           options={Array.from({ length: 60 }, (_, i) => ({ value: i, label: i.toString().padStart(2, '0') }))}
                           value={Number(averagePaceInput.split(':')[1]) || 0}
-                          onChange={(val) => {
+                          onChange={(val: string | number) => {
                             const minutes = averagePaceInput.split(':')[0] || '4';
                             setAveragePaceInput(`${minutes}:${String(val).padStart(2, '0')}`);
                           }}
