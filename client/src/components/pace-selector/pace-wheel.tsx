@@ -1,10 +1,9 @@
-import { useState, useEffect, ChangeEvent } from 'react';
-import { WheelSelector } from '../ui/wheel-selector';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { formatPace, calculateSegmentTime } from '@/utils/pace-utils';
+import { formatPace, calculateSegmentTime, paceToSeconds, secondsToPace } from '@/utils/pace-utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 
 interface PaceWheelProps {
   isOpen: boolean;
@@ -24,20 +23,28 @@ export function PaceWheel({
   segmentDistance = 5
 }: PaceWheelProps) {
   const isMobile = useIsMobile();
-  // Parse initial pace (e.g., "4:30/km") into minutes and seconds
-  const [minutes, seconds] = initialPace.split('/')[0].split(':').map(Number);
+  const wheelRef = useRef<HTMLDivElement>(null);
   
-  const [selectedMinutes, setSelectedMinutes] = useState<number>(minutes || 4);
-  const [selectedSeconds, setSelectedSeconds] = useState<number>(seconds || 0);
-  const [minutesInput, setMinutesInput] = useState<string>(String(minutes || 4));
-  const [secondsInput, setSecondsInput] = useState<string>(String(seconds || 0).padStart(2, '0'));
+  // Convert pace to seconds (for easier manipulation)
+  const initialPaceSeconds = paceToSeconds(initialPace);
   
-  // Generate wheel options with 1-second increments
-  const minutesOptions = Array.from({ length: 10 }, (_, i) => i + 3); // 3 to 12 minutes
-  const secondsOptions = Array.from({ length: 60 }, (_, i) => i); // 0 to 59 seconds, 1-second steps
+  // State to track the current pace in seconds
+  const [paceSeconds, setPaceSeconds] = useState<number>(initialPaceSeconds);
   
-  // Format seconds with leading zero
-  const formattedSecondsOptions = secondsOptions.map(s => s.toString().padStart(2, '0'));
+  // State for handling wheel interactions
+  const [isDragging, setIsDragging] = useState(false);
+  const [startY, setStartY] = useState(0);
+  const [currentOffset, setCurrentOffset] = useState(0);
+  
+  // Generate pace options (+/- 2 minutes from initial pace)
+  const minPaceSeconds = Math.max(180, initialPaceSeconds - 120); // No less than 3:00/km
+  const maxPaceSeconds = initialPaceSeconds + 120; // 2 minutes slower
+  
+  // Generate an array of pace options in seconds
+  const paceOptions = Array.from(
+    { length: maxPaceSeconds - minPaceSeconds + 1 }, 
+    (_, i) => minPaceSeconds + i
+  );
   
   useEffect(() => {
     if (isOpen) {
