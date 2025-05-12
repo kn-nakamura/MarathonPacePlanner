@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Plus, Minus, Sliders, Clock } from "lucide-react";
-import { PaceWheel } from "@/components/pace-selector/pace-wheel";
+import { PaceWheel } from "@/components/pace-selector/new-pace-wheel";
 import { Segment } from "@/models/pace";
 import { adjustPaceBySeconds, formatPace, calculateCumulativeTimes } from "@/utils/pace-utils";
 import { useIsMobile } from "@/hooks/use-mobile";
