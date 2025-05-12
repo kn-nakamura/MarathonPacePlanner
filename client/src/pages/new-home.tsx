@@ -12,7 +12,7 @@ import { PaceChart } from '@/components/pace-chart/pace-chart';
 import { PlanSummaryCard } from '@/components/result-summary/plan-summary-card';
 import { ExportSegmentTable } from '@/components/pace-chart/export-segment-table';
 import { ExportChart } from '@/components/pace-chart/export-chart';
-import { TimeWheelSelector, WheelSelector } from '@/components/ui/wheel-selector';
+import { TimeSelectDropdowns, PaceSelectDropdowns } from '@/components/ui/select-dropdown';
 import { DEFAULT_SEGMENTS, Segment, PacePlan } from '@/models/pace';
 import { usePaceConverter } from '@/hooks/use-pace-converter';
 import { formatTime, calculateTotalTime, calculateAveragePace } from '@/utils/pace-utils';
@@ -56,17 +56,17 @@ export default function Home() {
     }
   }, [toast]);
   
-  // ホイール式の時間入力変更ハンドラー
-  const handleHoursChange = (hours: number) => {
-    setTargetHours(hours.toString());
+  // プルダウン式の時間入力変更ハンドラー
+  const handleHoursChange = (hours: string) => {
+    setTargetHours(hours);
   };
   
-  const handleMinutesChange = (minutes: number) => {
-    setTargetMinutes(minutes.toString().padStart(2, '0'));
+  const handleMinutesChange = (minutes: string) => {
+    setTargetMinutes(minutes);
   };
   
-  const handleSecondsChange = (seconds: number) => {
-    setTargetSeconds(seconds.toString().padStart(2, '0'));
+  const handleSecondsChange = (seconds: string) => {
+    setTargetSeconds(seconds);
   };
   
   // Format the target time
@@ -240,10 +240,10 @@ export default function Home() {
     <div className="container mx-auto p-4 max-w-7xl">
       <div className="mb-8">
         <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl mb-4">
-          マラソンペースプランナー
+          Welcome, Runner!
         </h1>
         <p className="text-xl text-muted-foreground">
-          目標タイムに基づく理想的なペースプランを作成して、レース戦略を最適化します
+          Create, customize and save your marathon pace strategy
         </p>
       </div>
       
@@ -270,57 +270,56 @@ export default function Home() {
               {averagePaceMode ? (
                 // 平均ペース入力
                 <div className="mb-6">
-                  <div className="mb-4 flex justify-center">
-                    <div className="text-center">
-                      <Label htmlFor="average-pace" className="block mb-2">平均ペース (分:秒/km)</Label>
-                      <div className="flex justify-center gap-4">
-                        <WheelSelector
-                          options={Array.from({ length: 7 }, (_, i) => ({ value: i + 3, label: String(i + 3) }))}
-                          value={Number(averagePaceInput.split(':')[0]) || 4}
-                          onChange={(val: string | number) => {
-                            const seconds = averagePaceInput.split(':')[1] || '00';
-                            setAveragePaceInput(`${val}:${seconds}`);
-                          }}
-                          label="分"
-                        />
-                        <WheelSelector
-                          options={Array.from({ length: 60 }, (_, i) => ({ value: i, label: i.toString().padStart(2, '0') }))}
-                          value={Number(averagePaceInput.split(':')[1]) || 0}
-                          onChange={(val: string | number) => {
-                            const minutes = averagePaceInput.split(':')[0] || '4';
-                            setAveragePaceInput(`${minutes}:${String(val).padStart(2, '0')}`);
-                          }}
-                          label="秒"
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  <h2 className="text-2xl font-bold mb-4">Average Pace Input</h2>
+                  <PaceSelectDropdowns
+                    minutes={averagePaceInput.split(':')[0] || '4'}
+                    seconds={averagePaceInput.split(':')[1] || '00'}
+                    onChangeMinutes={(val) => {
+                      const seconds = averagePaceInput.split(':')[1] || '00';
+                      setAveragePaceInput(`${val}:${seconds}`);
+                    }}
+                    onChangeSeconds={(val) => {
+                      const minutes = averagePaceInput.split(':')[0] || '4';
+                      setAveragePaceInput(`${minutes}:${val}`);
+                    }}
+                  />
                   <div className="flex justify-center mt-6">
-                    <Button onClick={generatePlan} className="w-full max-w-xs">
-                      ペースプラン生成
+                    <Button onClick={generatePlan} className="w-full">
+                      Generate Pace Plan
                     </Button>
                   </div>
                 </div>
               ) : (
                 // 目標タイム入力
                 <div className="mb-6">
-                  <div className="mb-4">
-                    <TimeWheelSelector
-                      hours={Number(targetHours)}
-                      minutes={Number(targetMinutes)}
-                      seconds={Number(targetSeconds)}
+                  <h2 className="text-2xl font-bold mb-4">Target Marathon Time</h2>
+                  <div className="mb-6">
+                    <TimeSelectDropdowns
+                      hours={targetHours}
+                      minutes={targetMinutes}
+                      seconds={targetSeconds}
                       onChangeHours={handleHoursChange}
                       onChangeMinutes={handleMinutesChange}
                       onChangeSeconds={handleSecondsChange}
                     />
                   </div>
                   <div className="flex justify-center mt-6">
-                    <Button onClick={generatePlan} className="w-full max-w-xs">
-                      ペースプラン生成
+                    <Button onClick={generatePlan} className="w-full">
+                      Generate Pace Plan
                     </Button>
                   </div>
                 </div>
               )}
+              
+              {/* Plan Summary */}
+              <div className="mb-6">
+                <PlanSummaryCard
+                  segments={segments}
+                  targetTime={targetTime}
+                  totalTime={totalTime}
+                  averagePace={averagePace}
+                />
+              </div>
               
               {/* Segment Editor */}
               <SegmentTable
@@ -343,19 +342,9 @@ export default function Home() {
           {/* Pace Chart */}
           <Card>
             <CardHeader>
-              <CardTitle>ペース分布</CardTitle>
+              <CardTitle>Pace Distribution</CardTitle>
             </CardHeader>
             <CardContent>
-              {/* プランサマリー */}
-              <div className="mb-6">
-                <PlanSummaryCard
-                  segments={segments}
-                  targetTime={targetTime}
-                  totalTime={totalTime}
-                  averagePace={averagePace}
-                />
-              </div>
-              
               {/* ペースチャート */}
               <PaceChart 
                 segments={segments}
@@ -365,7 +354,7 @@ export default function Home() {
               <div className="flex justify-between mt-6">
                 <div className="flex-1 max-w-sm">
                   <Input
-                    placeholder="プラン名 (保存時に使用)"
+                    placeholder="Plan name (for saving)"
                     value={planName}
                     onChange={(e) => setPlanName(e.target.value)}
                     className="w-full"
@@ -376,7 +365,7 @@ export default function Home() {
                     segments={segments}
                     targetTime={targetTime}
                   />
-                  <Button onClick={handleSavePlan}>保存</Button>
+                  <Button onClick={handleSavePlan}>Save Plan</Button>
                 </div>
               </div>
             </CardContent>
