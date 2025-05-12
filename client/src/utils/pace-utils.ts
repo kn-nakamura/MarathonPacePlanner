@@ -71,9 +71,17 @@ export function calculateTotalTime(segments: Segment[]): string {
   let totalSeconds = 0;
   
   segments.forEach(segment => {
-    // Get the time parts (MM:SS) from the segment time
-    const [minutes, seconds] = segment.segmentTime.split(':').map(Number);
-    totalSeconds += minutes * 60 + seconds;
+    // Handle MM:SS or HH:MM:SS formats
+    const timeParts = segment.segmentTime.split(':').map(Number);
+    if (timeParts.length === 3) {
+      // HH:MM:SS format
+      const [hours, minutes, seconds] = timeParts;
+      totalSeconds += hours * 3600 + minutes * 60 + seconds;
+    } else if (timeParts.length === 2) {
+      // MM:SS format
+      const [minutes, seconds] = timeParts;
+      totalSeconds += minutes * 60 + seconds;
+    }
   });
   
   const hours = Math.floor(totalSeconds / 3600);
@@ -92,9 +100,17 @@ export function calculateCumulativeTimes(segments: Segment[]): string[] {
   const cumulativeTimes: string[] = [];
   
   segments.forEach(segment => {
-    // Get the time parts (MM:SS) from the segment time
-    const [minutes, seconds] = segment.segmentTime.split(':').map(Number);
-    cumulativeSeconds += minutes * 60 + seconds;
+    // Handle MM:SS or HH:MM:SS formats
+    const timeParts = segment.segmentTime.split(':').map(Number);
+    if (timeParts.length === 3) {
+      // HH:MM:SS format
+      const [hours, minutes, seconds] = timeParts;
+      cumulativeSeconds += hours * 3600 + minutes * 60 + seconds;
+    } else if (timeParts.length === 2) {
+      // MM:SS format
+      const [minutes, seconds] = timeParts;
+      cumulativeSeconds += minutes * 60 + seconds;
+    }
     
     const hours = Math.floor(cumulativeSeconds / 3600);
     const mins = Math.floor((cumulativeSeconds % 3600) / 60);
@@ -108,8 +124,9 @@ export function calculateCumulativeTimes(segments: Segment[]): string[] {
 
 /**
  * Calculates the average pace based on total time and distance
+ * Uses the exact marathon distance of 42.195 km if no distance is specified
  */
-export function calculateAveragePace(totalTime: string, distanceKm: number): string {
+export function calculateAveragePace(totalTime: string, distanceKm: number = 42.195): string {
   const [hours, minutes, seconds] = totalTime.split(':').map(Number);
   const totalSeconds = hours * 3600 + minutes * 60 + seconds;
   const paceSeconds = totalSeconds / distanceKm;

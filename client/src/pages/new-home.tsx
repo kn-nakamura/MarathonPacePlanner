@@ -181,7 +181,7 @@ export default function Home() {
   const handleUpdateRemainingSegments = (startIndex: number, pace: string) => {
     const newSegments = segments.map((segment, i) => {
       if (i >= startIndex) {
-        const distance = i === segments.length - 1 ? 2.2 : 5;
+        const distance = i === segments.length - 1 ? 2.195 : 5;
         return {
           ...segment,
           customPace: pace,
