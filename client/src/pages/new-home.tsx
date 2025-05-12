@@ -237,7 +237,7 @@ export default function Home() {
   // ExportSegmentTableコンポーネントが内部で処理します
 
   return (
-    <div className="container mx-auto p-4 max-w-7xl">
+    <div className="container mx-auto px-2 sm:px-4 py-4 max-w-7xl">
       <div className="mb-8">
         <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl mb-4">
           Welcome, Runner!
@@ -247,7 +247,7 @@ export default function Home() {
         </p>
       </div>
       
-      <div className="grid md:grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
         {/* Left Column */}
         <div className="lg:col-span-8 space-y-6">
           {/* Generator Card */}
@@ -339,26 +339,17 @@ export default function Home() {
             </CardContent>
           </Card>
           
-          {/* Save Plan Controls */}
+          {/* Simple Save Button */}
           <Card>
-            <CardHeader>
-              <CardTitle>Save Your Plan</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col md:flex-row md:justify-between gap-4">
-                <div className="flex-1 max-w-md">
-                  <Input
-                    placeholder="Enter a name for your plan"
-                    value={planName}
-                    onChange={(e) => setPlanName(e.target.value)}
-                    className="w-full"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <ExportChart
-                    segments={segments}
-                    targetTime={targetTime}
-                  />
+            <CardContent className="pt-6">
+              <div className="flex flex-col gap-4">
+                <Input
+                  placeholder="Enter a name for your plan"
+                  value={planName}
+                  onChange={(e) => setPlanName(e.target.value)}
+                  className="w-full"
+                />
+                <div className="flex justify-end gap-2">
                   <Button onClick={handleSavePlan}>Save Plan</Button>
                 </div>
               </div>

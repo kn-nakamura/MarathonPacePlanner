@@ -39,23 +39,23 @@ export function SegmentTable({ segments, onUpdateSegment, onUpdateRemainingSegme
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
-      <div className={`${isMobile ? 'p-3' : 'p-4 sm:p-5'} border-b border-gray-200 dark:border-gray-700`}>
+      <div className={`${isMobile ? 'p-2 sm:p-3' : 'p-4'} border-b border-gray-200 dark:border-gray-700`}>
         <h3 className="text-lg font-display font-semibold">Segment Editor</h3>
-        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Adjust each segment's pace using the dropdown selectors
         </p>
       </div>
       
       <div className="overflow-x-auto">
-        <Table className={isMobile ? "text-sm" : ""}>
+        <Table className={isMobile ? "text-xs sm:text-sm" : ""}>
           <TableHeader>
             <TableRow>
-              <TableHead className={isMobile ? "py-2 px-2" : ""}>Distance</TableHead>
-              <TableHead className={isMobile ? "py-2 px-2" : ""}>Pace</TableHead>
-              <TableHead className={isMobile ? "py-2 px-2" : ""}>Time</TableHead>
-              <TableHead className={isMobile ? "py-2 px-2" : ""}>
+              <TableHead className={isMobile ? "py-1 px-1 sm:py-2 sm:px-2" : ""}>Distance</TableHead>
+              <TableHead className={isMobile ? "py-1 px-1 sm:py-2 sm:px-2" : ""}>Pace</TableHead>
+              <TableHead className={isMobile ? "py-1 px-1 sm:py-2 sm:px-2" : ""}>Time</TableHead>
+              <TableHead className={isMobile ? "py-1 px-1 sm:py-2 sm:px-2" : ""}>
                 <div className="flex items-center" title="Cumulative Time">
-                  <Clock className="w-4 h-4" />
+                  <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
                 </div>
               </TableHead>
             </TableRow>
@@ -63,19 +63,19 @@ export function SegmentTable({ segments, onUpdateSegment, onUpdateRemainingSegme
           <TableBody>
             {segments.map((segment, index) => (
               <TableRow key={segment.id}>
-                <TableCell className={`text-muted-foreground ${isMobile ? "py-1.5 px-2" : ""}`}>
+                <TableCell className={`text-muted-foreground ${isMobile ? "py-1 px-1 sm:py-1.5 sm:px-2" : ""}`}>
                   {segment.distance}
                 </TableCell>
-                <TableCell className={isMobile ? "py-1.5 px-2" : ""}>
+                <TableCell className={isMobile ? "py-1 px-1 sm:py-1.5 sm:px-2" : ""}>
                   <PaceDropdown 
                     pace={segment.customPace} 
                     onPaceChange={(newPace) => handlePaceChange(index, newPace)} 
                   />
                 </TableCell>
-                <TableCell className={isMobile ? "py-1.5 px-2" : ""}>
+                <TableCell className={isMobile ? "py-1 px-1 sm:py-1.5 sm:px-2" : ""}>
                   {segment.segmentTime}
                 </TableCell>
-                <TableCell className={`font-semibold text-primary-600 dark:text-primary-400 ${isMobile ? "py-1.5 px-2" : ""}`}>
+                <TableCell className={`font-semibold text-primary-600 dark:text-primary-400 ${isMobile ? "py-1 px-1 sm:py-1.5 sm:px-2" : ""}`}>
                   {cumulativeTimes[index] || ''}
                 </TableCell>
               </TableRow>

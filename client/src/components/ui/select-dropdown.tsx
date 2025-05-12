@@ -26,16 +26,16 @@ export function TimeSelectDropdowns({
   onChangeSeconds,
 }: TimeSelectDropdownsProps) {
   return (
-    <div className="flex items-center gap-2 justify-center w-full max-w-md mx-auto">
+    <div className="flex items-center gap-1 sm:gap-2 justify-center w-full max-w-xs sm:max-w-md mx-auto">
       <div className="w-1/3">
         <Select value={hours} onValueChange={onChangeHours}>
-          <SelectTrigger className="w-full text-center">
-            <SelectValue placeholder="Hours" />
+          <SelectTrigger className="w-full text-center text-xs sm:text-sm">
+            <SelectValue placeholder="Hr" />
           </SelectTrigger>
           <SelectContent>
             {Array.from({ length: 7 }, (_, i) => (
               <SelectItem key={`hour-${i}`} value={String(i)}>
-                {i} hrs
+                {i} hr
               </SelectItem>
             ))}
           </SelectContent>
@@ -44,13 +44,13 @@ export function TimeSelectDropdowns({
 
       <div className="w-1/3">
         <Select value={minutes} onValueChange={onChangeMinutes}>
-          <SelectTrigger className="w-full text-center">
+          <SelectTrigger className="w-full text-center text-xs sm:text-sm">
             <SelectValue placeholder="Min" />
           </SelectTrigger>
           <SelectContent>
             {Array.from({ length: 60 }, (_, i) => (
               <SelectItem key={`min-${i}`} value={String(i).padStart(2, "0")}>
-                {String(i).padStart(2, "0")} min
+                {String(i).padStart(2, "0")}
               </SelectItem>
             ))}
           </SelectContent>
@@ -59,13 +59,13 @@ export function TimeSelectDropdowns({
 
       <div className="w-1/3">
         <Select value={seconds} onValueChange={onChangeSeconds}>
-          <SelectTrigger className="w-full text-center">
+          <SelectTrigger className="w-full text-center text-xs sm:text-sm">
             <SelectValue placeholder="Sec" />
           </SelectTrigger>
           <SelectContent>
             {Array.from({ length: 60 }, (_, i) => (
               <SelectItem key={`sec-${i}`} value={String(i).padStart(2, "0")}>
-                {String(i).padStart(2, "0")} sec
+                {String(i).padStart(2, "0")}
               </SelectItem>
             ))}
           </SelectContent>
@@ -90,16 +90,16 @@ export function PaceSelectDropdowns({
   onChangeSeconds,
 }: PaceSelectDropdownsProps) {
   return (
-    <div className="flex items-center gap-2 justify-center w-full max-w-md mx-auto">
+    <div className="flex items-center gap-1 sm:gap-2 justify-center w-full max-w-xs sm:max-w-md mx-auto">
       <div className="w-1/2">
         <Select value={minutes} onValueChange={onChangeMinutes}>
-          <SelectTrigger className="w-full text-center">
+          <SelectTrigger className="w-full text-center text-xs sm:text-sm">
             <SelectValue placeholder="Min" />
           </SelectTrigger>
           <SelectContent>
             {Array.from({ length: 10 }, (_, i) => (
               <SelectItem key={`pace-min-${i}`} value={String(i + 3)}>
-                {i + 3} min
+                {i + 3}
               </SelectItem>
             ))}
           </SelectContent>
@@ -108,13 +108,13 @@ export function PaceSelectDropdowns({
 
       <div className="w-1/2">
         <Select value={seconds} onValueChange={onChangeSeconds}>
-          <SelectTrigger className="w-full text-center">
+          <SelectTrigger className="w-full text-center text-xs sm:text-sm">
             <SelectValue placeholder="Sec" />
           </SelectTrigger>
           <SelectContent>
             {Array.from({ length: 60 }, (_, i) => (
               <SelectItem key={`pace-sec-${i}`} value={String(i).padStart(2, "0")}>
-                {String(i).padStart(2, "0")} sec
+                {String(i).padStart(2, "0")}
               </SelectItem>
             ))}
           </SelectContent>
@@ -144,7 +144,7 @@ export function PaceDropdown({ pace, onPaceChange }: PaceDropdownProps) {
   return (
     <div className="flex space-x-1 items-center">
       <Select value={min} onValueChange={handleMinChange}>
-        <SelectTrigger className="h-8 w-12 px-1">
+        <SelectTrigger className="h-7 sm:h-8 w-10 sm:w-12 px-1 text-xs sm:text-sm">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -155,9 +155,9 @@ export function PaceDropdown({ pace, onPaceChange }: PaceDropdownProps) {
           ))}
         </SelectContent>
       </Select>
-      <span>:</span>
+      <span className="text-xs sm:text-sm">:</span>
       <Select value={sec} onValueChange={handleSecChange}>
-        <SelectTrigger className="h-8 w-14 px-1">
+        <SelectTrigger className="h-7 sm:h-8 w-12 sm:w-14 px-1 text-xs sm:text-sm">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
