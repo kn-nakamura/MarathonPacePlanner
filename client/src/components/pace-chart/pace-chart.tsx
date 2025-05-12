@@ -22,6 +22,8 @@ import { useToast } from '@/hooks/use-toast';
 interface PaceChartProps {
   segments: Segment[];
   targetTime: string;
+  exportMode?: boolean;
+  height?: number;
 }
 
 interface ChartData {
@@ -32,7 +34,7 @@ interface ChartData {
   cumulativeTime?: string;
 }
 
-export function PaceChart({ segments, targetTime }: PaceChartProps) {
+export function PaceChart({ segments, targetTime, exportMode = false, height = 350 }: PaceChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [chartData, setChartData] = useState<ChartData[]>([]);
@@ -145,25 +147,27 @@ export function PaceChart({ segments, targetTime }: PaceChartProps) {
   };
 
   return (
-    <div className="mt-4">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-display font-semibold">Pace Distribution</h3>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={handleDownloadImage}
-          className="flex items-center gap-2"
-        >
-          <Download size={16} />
-          <span>Save as Image</span>
-        </Button>
-      </div>
+    <div className={!exportMode ? "mt-4" : ""}>
+      {!exportMode && (
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-display font-semibold">Pace Distribution</h3>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleDownloadImage}
+            className="flex items-center gap-2"
+          >
+            <Download size={16} />
+            <span>Save as Image</span>
+          </Button>
+        </div>
+      )}
       
       <div 
         ref={chartRef} 
-        className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700"
+        className={!exportMode ? "bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700" : ""}
       >
-        <ResponsiveContainer width="100%" height={350}>
+        <ResponsiveContainer width="100%" height={exportMode ? 400 : height}>
           <LineChart
             data={chartData}
             margin={{
@@ -238,7 +242,7 @@ export function PaceChart({ segments, targetTime }: PaceChartProps) {
           </LineChart>
         </ResponsiveContainer>
         <div className="text-xs text-center mt-2 text-muted-foreground">
-          Note: Cumulative times shown above each data point
+          {!exportMode ? "Note: Cumulative times shown above each data point" : ""}
         </div>
       </div>
     </div>
