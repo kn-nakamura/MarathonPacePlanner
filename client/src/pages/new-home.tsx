@@ -1,12 +1,13 @@
-import { useState, useEffect, ChangeEvent } from 'react';
+import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SegmentTable } from '@/components/plan-table/segment-table';
-import { SummaryCard } from '@/components/result-summary/summary-card';
 import { PaceChart } from '@/components/pace-chart/pace-chart';
 import { ExportImage } from '@/components/pace-chart/export-image';
 import { DEFAULT_SEGMENTS, Segment, PacePlan } from '@/models/pace';
@@ -15,6 +16,7 @@ import { formatTime, calculateTotalTime, calculateAveragePace } from '@/utils/pa
 import { apiRequest } from '@/lib/queryClient';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { toPng } from 'html-to-image';
 
 export default function Home() {
   const [targetHours, setTargetHours] = useState<string>("3");
@@ -101,7 +103,7 @@ export default function Home() {
       // ターゲットタイムから平均ペースを計算して初期値にセット
       const [hours, minutes, seconds] = targetTime.split(':').map(Number);
       const totalTargetSeconds = hours * 3600 + minutes * 60 + seconds;
-      const paceSecondsPerKm = totalTargetSeconds / 42.2;
+      const paceSecondsPerKm = totalTargetSeconds / 42.195;
       const paceMinutes = Math.floor(paceSecondsPerKm / 60);
       const paceSeconds = Math.round(paceSecondsPerKm % 60);
       setAveragePaceInput(`${paceMinutes}:${paceSeconds.toString().padStart(2, '0')}`);
@@ -159,230 +161,255 @@ export default function Home() {
         ...segment,
         targetPace: defaultPace,
         customPace: defaultPace,
-        segmentTime: segmentTime.split(':').slice(1).join(':') // Remove hours part
+        segmentTime
       };
     });
     
     setSegments(newSegments);
     
     toast({
-      title: "Plan Generated",
-      description: `Created a pace plan for a target time of ${targetTime}.`,
+      title: 'Plan Generated',
+      description: `Created plan with target time ${targetTime} (${defaultPace})`,
     });
   };
-
-  // Handle updating a single segment
+  
+  // Update segment data
   const handleUpdateSegment = (index: number, updatedSegment: Segment) => {
     const newSegments = [...segments];
-    
-    // Get the distance for this segment
-    const distance = index === segments.length - 1 ? 2.2 : 5;
-    
-    // Recalculate segment time based on new pace
-    const segmentTime = calculateTime(updatedSegment.customPace, distance);
-    
-    // Update the segment with the new pace and time
     newSegments[index] = {
       ...updatedSegment,
-      segmentTime: segmentTime.split(':').slice(1).join(':') // Remove hours part
+      segmentTime: calculateTime(updatedSegment.customPace, 
+        index === segments.length - 1 ? 2.2 : 5) // Last segment is 2.2km
+    };
+    setSegments(newSegments);
+  };
+  
+  // Update pace for all remaining segments
+  const handleUpdateRemainingSegments = (startIndex: number, pace: string) => {
+    const newSegments = segments.map((segment, i) => {
+      if (i >= startIndex) {
+        const distance = i === segments.length - 1 ? 2.2 : 5;
+        return {
+          ...segment,
+          customPace: pace,
+          segmentTime: calculateTime(pace, distance)
+        };
+      }
+      return segment;
+    });
+    
+    setSegments(newSegments);
+  };
+  
+  // Mutation for saving plan
+  const savePlanMutation = useMutation({
+    mutationFn: async (plan: PacePlan) => {
+      // Local save only for now
+      try {
+        localStorage.setItem('marathonPacePlan', JSON.stringify(plan));
+        return true;
+      } catch (error) {
+        throw new Error('Failed to save plan locally');
+      }
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Plan Saved',
+        description: 'Your marathon pace plan has been saved to your browser',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to save plan',
+        variant: 'destructive',
+      });
+    }
+  });
+  
+  // Handle save plan
+  const handleSavePlan = () => {
+    const plan: PacePlan = {
+      name: planName || `Marathon Plan (${targetTime})`,
+      targetTime,
+      segments,
+      totalTime,
+      createdAt: new Date()
     };
     
-    setSegments(newSegments);
+    savePlanMutation.mutate(plan);
   };
 
-  // Handle updating all remaining segments
-  const handleUpdateRemainingSegments = (startIndex: number, pace: string) => {
-    const newSegments = [...segments];
-    
-    for (let i = startIndex; i < segments.length; i++) {
-      // Get the distance for this segment
-      const distance = i === segments.length - 1 ? 2.2 : 5;
-      
-      // Recalculate segment time based on new pace
-      const segmentTime = calculateTime(pace, distance);
-      
-      // Update the segment with the new pace and time
-      newSegments[i] = {
-        ...segments[i],
-        customPace: pace,
-        segmentTime: segmentTime.split(':').slice(1).join(':') // Remove hours part
-      };
-    }
-    
-    setSegments(newSegments);
-  };
-
-  // Handle saving the current plan
-  const handleSavePlan = () => {
-    // Generate a name if none was provided
-    const name = planName || `Marathon Plan ${targetTime}`;
+  // セグメントテーブルを画像として保存
+  const segmentTableRef = useRef<HTMLDivElement>(null);
+  
+  const saveSegmentTableAsImage = async () => {
+    if (!segmentTableRef.current) return;
     
     try {
-      // Create the plan object
-      const plan: PacePlan = {
-        name,
-        targetTime,
-        segments,
-        totalTime
-      };
+      const dataUrl = await toPng(segmentTableRef.current, {
+        quality: 0.95,
+        cacheBust: true,
+        backgroundColor: document.documentElement.classList.contains('dark') ? '#1f2937' : '#ffffff'
+      });
       
-      // Convert plan to JSON for local storage
-      const planJson = JSON.stringify(plan);
-      
-      // Save to local storage instead of server
-      localStorage.setItem(`pace-plan-${Date.now()}`, planJson);
+      const link = document.createElement('a');
+      link.download = `marathon-pace-plan-${new Date().getTime()}.png`;
+      link.href = dataUrl;
+      link.click();
       
       toast({
-        title: "Plan Saved",
-        description: "Your pace strategy has been saved to your browser.",
+        title: 'セグメント表を保存しました',
+        description: '画像として保存されました',
       });
-    } catch (error) {
+    } catch (err) {
       toast({
-        title: "Error Saving Plan",
-        description: "There was an error saving your plan. Please try again.",
-        variant: "destructive",
+        title: 'エラー',
+        description: '画像保存に失敗しました',
+        variant: 'destructive',
       });
-      console.error('Error saving plan:', error);
+      console.error('Error saving image:', err);
     }
   };
 
-  // Hours, minutes, seconds options for selects
-  const hoursOptions = Array.from({ length: 7 }, (_, i) => i.toString());
-  // Minutes options from 0 to 59 (1 minute increments)
-  const minutesOptions = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
-  // Seconds options from 0 to 59 (1 second increments)
-  const secondsOptions = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
-
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6">
-      {/* Welcome Section */}
-      <div className="mb-6 sm:mb-8">
-        <h2 className="text-xl sm:text-2xl font-display font-semibold mb-2">Welcome, Runner!</h2>
-        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">Create, customize and save your marathon pace strategy below.</p>
+    <div className="container mx-auto p-4 max-w-7xl">
+      <div className="mb-8">
+        <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl mb-4">
+          マラソンペースプランナー
+        </h1>
+        <p className="text-xl text-muted-foreground">
+          目標タイムに基づく理想的なペースプランを作成して、レース戦略を最適化します
+        </p>
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
-        {/* Left Column: Input & Summary */}
-        <div className="lg:col-span-4 space-y-4 sm:space-y-6">
-          {/* Target Time Input Card */}
-          <Card className="overflow-hidden">
-            <CardHeader className="px-4 py-4 sm:p-6">
-              <CardTitle className="text-lg">Target Marathon Time</CardTitle>
+      
+      <div className="grid md:grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left Column */}
+        <div className="lg:col-span-8 space-y-6">
+          {/* Generator Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>ペースプラン生成</CardTitle>
             </CardHeader>
-            <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label htmlFor="hour">Hours</Label>
-                  <Select value={targetHours} onValueChange={setTargetHours}>
-                    <SelectTrigger id="hour">
-                      <SelectValue placeholder="Hours" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {hoursOptions.map(hour => (
-                        <SelectItem key={hour} value={hour}>{hour}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="minute">Minutes</Label>
-                  <Select value={targetMinutes} onValueChange={setTargetMinutes}>
-                    <SelectTrigger id="minute">
-                      <SelectValue placeholder="Minutes" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {minutesOptions.map(minute => (
-                        <SelectItem key={minute} value={minute}>{minute}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="second">Seconds</Label>
-                  <Select value={targetSeconds} onValueChange={setTargetSeconds}>
-                    <SelectTrigger id="second">
-                      <SelectValue placeholder="Seconds" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {secondsOptions.map(second => (
-                        <SelectItem key={second} value={second}>{second}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+            <CardContent>
+              <div className="flex items-center mb-6 space-x-2">
+                <Switch 
+                  id="input-mode" 
+                  checked={averagePaceMode}
+                  onCheckedChange={toggleInputMode}
+                />
+                <Label htmlFor="input-mode">
+                  {averagePaceMode ? "平均ペースから作成" : "目標タイムから作成"}
+                </Label>
               </div>
-              <Button 
-                className="mt-4 w-full" 
-                onClick={generatePlan}
-                disabled={!targetHours && !targetMinutes}
-              >
-                Generate Pace Plan
-              </Button>
+            
+              {averagePaceMode ? (
+                // 平均ペース入力
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <Label htmlFor="average-pace">平均ペース (分:秒/km)</Label>
+                    <Input
+                      id="average-pace"
+                      value={averagePaceInput}
+                      onChange={handleAveragePaceChange}
+                      placeholder="例: 4:58"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Button onClick={generatePlan} className="mb-1">
+                      ペースプラン生成
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                // 目標タイム入力
+                <div className="grid grid-cols-4 gap-4 mb-6">
+                  <div>
+                    <Label htmlFor="hours">時間</Label>
+                    <Input
+                      id="hours"
+                      value={targetHours}
+                      onChange={handleHoursChange}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="minutes">分</Label>
+                    <Input
+                      id="minutes"
+                      value={targetMinutes}
+                      onChange={handleMinutesChange}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="seconds">秒</Label>
+                    <Input
+                      id="seconds"
+                      value={targetSeconds}
+                      onChange={handleSecondsChange}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Button onClick={generatePlan} className="mb-1">
+                      ペースプラン生成
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
+              {/* Segment Editor */}
+              <div ref={segmentTableRef}>
+                <SegmentTable
+                  segments={segments}
+                  onUpdateSegment={handleUpdateSegment}
+                  onUpdateRemainingSegments={handleUpdateRemainingSegments}
+                />
+              </div>
+              
+              <div className="mt-4 flex justify-end">
+                <Button variant="outline" onClick={saveSegmentTableAsImage}>
+                  セグメント表を画像として保存
+                </Button>
+              </div>
             </CardContent>
           </Card>
           
-          {/* Plan Summary Card */}
-          <SummaryCard
-            segments={segments}
-            targetTime={targetTime}
-            totalTime={totalTime}
-            averagePace={averagePace}
-            onSavePlan={handleSavePlan}
-          />
-          
-
-        </div>
-        
-        {/* Right Column: Segment Pace Editor */}
-        <div className="lg:col-span-8 space-y-4 sm:space-y-6">
-          {/* Hero Section */}
-          <div className="relative rounded-xl overflow-hidden h-40 sm:h-56 md:h-64">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary-900/90 to-blue-600/80 flex items-center">
-              <div className="px-4 sm:px-6 md:px-10 py-4 text-white">
-                <h2 className="text-xl sm:text-2xl md:text-3xl font-display font-bold">Pace Strategy</h2>
-                <p className="mt-1 sm:mt-2 text-sm sm:text-base max-w-md">Fine-tune your segment paces to achieve your marathon goal</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Segments Editor - Mobile Responsive */}
-          <div className="overflow-x-auto">
-            <SegmentTable 
-              segments={segments}
-              onUpdateSegment={handleUpdateSegment}
-              onUpdateRemainingSegments={handleUpdateRemainingSegments}
-            />
-          </div>
-
-          {/* Pace Distribution Chart - Mobile Responsive */}
-          <Card className="overflow-hidden">
-            <CardContent className="pt-4 sm:pt-6 px-2 sm:px-6">
+          {/* Pace Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle>ペース分布</CardTitle>
+            </CardHeader>
+            <CardContent>
               <PaceChart 
                 segments={segments}
                 targetTime={targetTime}
               />
+              
+              <div className="flex justify-between mt-6">
+                <Input
+                  placeholder="プラン名 (保存時に使用)"
+                  value={planName}
+                  onChange={(e) => setPlanName(e.target.value)}
+                  className="max-w-sm mr-4"
+                />
+                <Button onClick={handleSavePlan}>保存</Button>
+              </div>
             </CardContent>
           </Card>
-          
-          {/* Export Plan as Image - Mobile Responsive */}
-          <Card className="overflow-hidden">
-            <CardContent className="pt-4 sm:pt-6 px-2 sm:px-6">
-              <ExportImage 
-                segments={segments}
-                targetTime={targetTime}
-                totalTime={totalTime}
-                averagePace={averagePace}
-              />
-            </CardContent>
-          </Card>
-          
-          {/* Tips and Strategy Section */}
+        </div>
+        
+        {/* Right Column */}
+        <div className="lg:col-span-4 space-y-6">
+          {/* Tips */}
           <Card>
             <CardHeader>
-              <CardTitle>Strategy Tips</CardTitle>
+              <CardTitle>ペース戦略のヒント</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg">
                   <h4 className="font-medium text-blue-700 dark:text-blue-300 mb-2">
                     <svg 
@@ -397,47 +424,18 @@ export default function Home() {
                       strokeLinejoin="round"
                       className="inline mr-2"
                     >
-                      <path d="M12 2v6"></path>
-                      <path d="M12 18v4"></path>
-                      <path d="M4.93 4.93l4.24 4.24"></path>
-                      <path d="M14.83 14.83l4.24 4.24"></path>
-                      <path d="M2 12h6"></path>
-                      <path d="M18 12h4"></path>
-                      <path d="M4.93 19.07l4.24-4.24"></path>
-                      <path d="M14.83 9.17l4.24-4.24"></path>
+                      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path>
+                      <circle cx="12" cy="13" r="3"></circle>
                     </svg>
-                    Negative Split
+                    レースのペーシング
                   </h4>
                   <p className="text-sm text-gray-700 dark:text-gray-300">
-                    Running the second half of your marathon faster than the first can help prevent burnout and improve your overall time.
+                    最初の10kmは少し控えめに走り、中盤で目標ペースを維持し、最後の7kmは体力に応じてペースを上げましょう。
                   </p>
                 </div>
                 
                 <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded-lg">
                   <h4 className="font-medium text-green-700 dark:text-green-300 mb-2">
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="inline mr-2"
-                    >
-                      <path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0l-.77.78-.77-.78a5.4 5.4 0 0 0-7.65 0C1.46 6.7 1.33 10.28 4 13l8 8 8-8c2.67-2.72 2.54-6.3.42-8.42z"></path>
-                    </svg>
-                    Heart Rate Management
-                  </h4>
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
-                    Starting slightly slower helps keep your heart rate in check and preserves energy for the challenging final kilometers.
-                  </p>
-                </div>
-                
-                <div className="bg-purple-50 dark:bg-purple-900/30 p-4 rounded-lg">
-                  <h4 className="font-medium text-purple-700 dark:text-purple-300 mb-2">
                     <svg 
                       xmlns="http://www.w3.org/2000/svg"
                       width="16"
@@ -456,10 +454,10 @@ export default function Home() {
                       <path d="M6 14v0a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path>
                       <path d="M18 11v0a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-4a8 8 0 0 1-8-8 2 2 0 1 1 4 0"></path>
                     </svg>
-                    Course Profile
+                    コースプロファイル
                   </h4>
                   <p className="text-sm text-gray-700 dark:text-gray-300">
-                    Adjust your pace strategy based on the course elevation - slower on uphills, faster on downhills to maintain consistent effort.
+                    コースの高低差に合わせてペース戦略を調整しましょう - 上り坂ではゆっくり、下り坂では少し速く走り、一定の努力を維持します。
                   </p>
                 </div>
                 
@@ -480,10 +478,10 @@ export default function Home() {
                       <path d="M12 12m-8 0a8 8 0 1 0 16 0a8 8 0 1 0 -16 0"></path>
                       <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"></path>
                     </svg>
-                    The Wall
+                    ウォール
                   </h4>
                   <p className="text-sm text-gray-700 dark:text-gray-300">
-                    Plan for slightly slower paces between 30-35km when many runners hit "the wall" due to glycogen depletion.
+                    グリコーゲン枯渇により多くのランナーが「ウォール」にぶつかる30-35km間は、やや遅いペースを計画しておきましょう。
                   </p>
                 </div>
               </div>
