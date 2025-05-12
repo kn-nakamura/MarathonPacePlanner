@@ -368,10 +368,23 @@ export default function Home() {
         
         {/* Right Column */}
         <div className="lg:col-span-4 space-y-6">
+          {/* Pace Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Pace Distribution</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PaceChart 
+                segments={segments}
+                targetTime={targetTime}
+              />
+            </CardContent>
+          </Card>
+          
           {/* Tips */}
           <Card>
             <CardHeader>
-              <CardTitle>ペース戦略のヒント</CardTitle>
+              <CardTitle>Running Strategy Tips</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -392,10 +405,10 @@ export default function Home() {
                       <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path>
                       <circle cx="12" cy="13" r="3"></circle>
                     </svg>
-                    レースのペーシング
+                    Race Pacing
                   </h4>
                   <p className="text-sm text-gray-700 dark:text-gray-300">
-                    最初の10kmは少し控えめに走り、中盤で目標ペースを維持し、最後の7kmは体力に応じてペースを上げましょう。
+                    Run the first 10km slightly conservatively, maintain target pace through the middle, and increase pace in the final 7km if you have the energy.
                   </p>
                 </div>
                 
@@ -419,10 +432,10 @@ export default function Home() {
                       <path d="M6 14v0a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path>
                       <path d="M18 11v0a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-4a8 8 0 0 1-8-8 2 2 0 1 1 4 0"></path>
                     </svg>
-                    コースプロファイル
+                    Course Profile
                   </h4>
                   <p className="text-sm text-gray-700 dark:text-gray-300">
-                    コースの高低差に合わせてペース戦略を調整しましょう - 上り坂ではゆっくり、下り坂では少し速く走り、一定の努力を維持します。
+                    Adjust your pace strategy to match elevation changes - slow down on uphills, speed up slightly on downhills, and maintain consistent effort throughout.
                   </p>
                 </div>
                 
@@ -443,10 +456,10 @@ export default function Home() {
                       <path d="M12 12m-8 0a8 8 0 1 0 16 0a8 8 0 1 0 -16 0"></path>
                       <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"></path>
                     </svg>
-                    ウォール
+                    The Wall
                   </h4>
                   <p className="text-sm text-gray-700 dark:text-gray-300">
-                    グリコーゲン枯渇により多くのランナーが「ウォール」にぶつかる30-35km間は、やや遅いペースを計画しておきましょう。
+                    Plan a slightly slower pace during the 30-35km range where many runners hit "the wall" due to glycogen depletion. Proper fueling helps minimize this effect.
                   </p>
                 </div>
               </div>
