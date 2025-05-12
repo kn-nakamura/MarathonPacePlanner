@@ -9,7 +9,10 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SegmentTable } from '@/components/plan-table/segment-table';
 import { PaceChart } from '@/components/pace-chart/pace-chart';
-import { ExportImage } from '@/components/pace-chart/export-image';
+import { PlanSummaryCard } from '@/components/result-summary/plan-summary-card';
+import { ExportSegmentTable } from '@/components/pace-chart/export-segment-table';
+import { ExportChart } from '@/components/pace-chart/export-chart';
+import { TimeWheelSelector, WheelSelector } from '@/components/ui/wheel-selector';
 import { DEFAULT_SEGMENTS, Segment, PacePlan } from '@/models/pace';
 import { usePaceConverter } from '@/hooks/use-pace-converter';
 import { formatTime, calculateTotalTime, calculateAveragePace } from '@/utils/pace-utils';
@@ -53,27 +56,17 @@ export default function Home() {
     }
   }, [toast]);
   
-  // Handle manual input for time values
-  const handleHoursChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (!/^\d*$/.test(value)) return;
-    setTargetHours(value);
+  // ホイール式の時間入力変更ハンドラー
+  const handleHoursChange = (hours: number) => {
+    setTargetHours(hours.toString());
   };
   
-  const handleMinutesChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (!/^\d*$/.test(value)) return;
-    if (value && Number(value) >= 0 && Number(value) <= 59) {
-      setTargetMinutes(value.padStart(2, '0'));
-    }
+  const handleMinutesChange = (minutes: number) => {
+    setTargetMinutes(minutes.toString().padStart(2, '0'));
   };
   
-  const handleSecondsChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (!/^\d*$/.test(value)) return;
-    if (value && Number(value) >= 0 && Number(value) <= 59) {
-      setTargetSeconds(value.padStart(2, '0'));
-    }
+  const handleSecondsChange = (seconds: number) => {
+    setTargetSeconds(seconds.toString().padStart(2, '0'));
   };
   
   // Format the target time
@@ -240,37 +233,8 @@ export default function Home() {
     savePlanMutation.mutate(plan);
   };
 
-  // セグメントテーブルを画像として保存
-  const segmentTableRef = useRef<HTMLDivElement>(null);
-  
-  const saveSegmentTableAsImage = async () => {
-    if (!segmentTableRef.current) return;
-    
-    try {
-      const dataUrl = await toPng(segmentTableRef.current, {
-        quality: 0.95,
-        cacheBust: true,
-        backgroundColor: document.documentElement.classList.contains('dark') ? '#1f2937' : '#ffffff'
-      });
-      
-      const link = document.createElement('a');
-      link.download = `marathon-pace-plan-${new Date().getTime()}.png`;
-      link.href = dataUrl;
-      link.click();
-      
-      toast({
-        title: 'セグメント表を保存しました',
-        description: '画像として保存されました',
-      });
-    } catch (err) {
-      toast({
-        title: 'エラー',
-        description: '画像保存に失敗しました',
-        variant: 'destructive',
-      });
-      console.error('Error saving image:', err);
-    }
-  };
+  // セグメントテーブルの参照は不要になりました
+  // ExportSegmentTableコンポーネントが内部で処理します
 
   return (
     <div className="container mx-auto p-4 max-w-7xl">
@@ -305,55 +269,53 @@ export default function Home() {
             
               {averagePaceMode ? (
                 // 平均ペース入力
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div>
-                    <Label htmlFor="average-pace">平均ペース (分:秒/km)</Label>
-                    <Input
-                      id="average-pace"
-                      value={averagePaceInput}
-                      onChange={handleAveragePaceChange}
-                      placeholder="例: 4:58"
-                      className="mt-1"
-                    />
+                <div className="mb-6">
+                  <div className="mb-4 flex justify-center">
+                    <div className="text-center">
+                      <Label htmlFor="average-pace" className="block mb-2">平均ペース (分:秒/km)</Label>
+                      <div className="flex justify-center gap-4">
+                        <WheelSelector
+                          options={Array.from({ length: 7 }, (_, i) => ({ value: i + 3, label: String(i + 3) }))}
+                          value={Number(averagePaceInput.split(':')[0]) || 4}
+                          onChange={(val) => {
+                            const seconds = averagePaceInput.split(':')[1] || '00';
+                            setAveragePaceInput(`${val}:${seconds}`);
+                          }}
+                          label="分"
+                        />
+                        <WheelSelector
+                          options={Array.from({ length: 60 }, (_, i) => ({ value: i, label: i.toString().padStart(2, '0') }))}
+                          value={Number(averagePaceInput.split(':')[1]) || 0}
+                          onChange={(val) => {
+                            const minutes = averagePaceInput.split(':')[0] || '4';
+                            setAveragePaceInput(`${minutes}:${String(val).padStart(2, '0')}`);
+                          }}
+                          label="秒"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-end">
-                    <Button onClick={generatePlan} className="mb-1">
+                  <div className="flex justify-center mt-6">
+                    <Button onClick={generatePlan} className="w-full max-w-xs">
                       ペースプラン生成
                     </Button>
                   </div>
                 </div>
               ) : (
                 // 目標タイム入力
-                <div className="grid grid-cols-4 gap-4 mb-6">
-                  <div>
-                    <Label htmlFor="hours">時間</Label>
-                    <Input
-                      id="hours"
-                      value={targetHours}
-                      onChange={handleHoursChange}
-                      className="mt-1"
+                <div className="mb-6">
+                  <div className="mb-4">
+                    <TimeWheelSelector
+                      hours={Number(targetHours)}
+                      minutes={Number(targetMinutes)}
+                      seconds={Number(targetSeconds)}
+                      onChangeHours={handleHoursChange}
+                      onChangeMinutes={handleMinutesChange}
+                      onChangeSeconds={handleSecondsChange}
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="minutes">分</Label>
-                    <Input
-                      id="minutes"
-                      value={targetMinutes}
-                      onChange={handleMinutesChange}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="seconds">秒</Label>
-                    <Input
-                      id="seconds"
-                      value={targetSeconds}
-                      onChange={handleSecondsChange}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <Button onClick={generatePlan} className="mb-1">
+                  <div className="flex justify-center mt-6">
+                    <Button onClick={generatePlan} className="w-full max-w-xs">
                       ペースプラン生成
                     </Button>
                   </div>
@@ -361,18 +323,19 @@ export default function Home() {
               )}
               
               {/* Segment Editor */}
-              <div ref={segmentTableRef}>
-                <SegmentTable
-                  segments={segments}
-                  onUpdateSegment={handleUpdateSegment}
-                  onUpdateRemainingSegments={handleUpdateRemainingSegments}
-                />
-              </div>
+              <SegmentTable
+                segments={segments}
+                onUpdateSegment={handleUpdateSegment}
+                onUpdateRemainingSegments={handleUpdateRemainingSegments}
+              />
               
               <div className="mt-4 flex justify-end">
-                <Button variant="outline" onClick={saveSegmentTableAsImage}>
-                  セグメント表を画像として保存
-                </Button>
+                <ExportSegmentTable
+                  segments={segments}
+                  targetTime={targetTime}
+                  totalTime={totalTime}
+                  averagePace={averagePace}
+                />
               </div>
             </CardContent>
           </Card>
@@ -383,19 +346,38 @@ export default function Home() {
               <CardTitle>ペース分布</CardTitle>
             </CardHeader>
             <CardContent>
+              {/* プランサマリー */}
+              <div className="mb-6">
+                <PlanSummaryCard
+                  segments={segments}
+                  targetTime={targetTime}
+                  totalTime={totalTime}
+                  averagePace={averagePace}
+                />
+              </div>
+              
+              {/* ペースチャート */}
               <PaceChart 
                 segments={segments}
                 targetTime={targetTime}
               />
               
               <div className="flex justify-between mt-6">
-                <Input
-                  placeholder="プラン名 (保存時に使用)"
-                  value={planName}
-                  onChange={(e) => setPlanName(e.target.value)}
-                  className="max-w-sm mr-4"
-                />
-                <Button onClick={handleSavePlan}>保存</Button>
+                <div className="flex-1 max-w-sm">
+                  <Input
+                    placeholder="プラン名 (保存時に使用)"
+                    value={planName}
+                    onChange={(e) => setPlanName(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <ExportChart
+                    segments={segments}
+                    targetTime={targetTime}
+                  />
+                  <Button onClick={handleSavePlan}>保存</Button>
+                </div>
               </div>
             </CardContent>
           </Card>
