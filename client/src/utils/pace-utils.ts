@@ -14,7 +14,13 @@ export function paceToSeconds(pace: string): number {
  */
 export function secondsToPace(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.round(seconds % 60);
+  let remainingSeconds = Math.round(seconds % 60);
+  
+  // 秒数が60になった場合は分に繰り上げる
+  if (remainingSeconds === 60) {
+    return `${minutes + 1}:00/km`;
+  }
+  
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}/km`;
 }
 

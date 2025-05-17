@@ -370,9 +370,9 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
         }
       }
       
-      // スライダーが0の場合は元のターゲットペースに戻す
+      // スライダーが0の場合は元のターゲットペースに完全に戻す
       if (paceAdjustmentFactor === 0) {
-        // ターゲットペースを使用（元のペース）
+        // 元のターゲットペースを使用
         const targetTime = segment.targetPace.replace('/km', '');
         const [min, sec] = targetTime.split(':').map(Number);
         const totalSeconds = min * 60 + sec;
@@ -381,6 +381,7 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
         const segTimeSec = Math.round(segTimeSeconds % 60);
         const segmentTimeFormatted = `${segTimeMin}:${segTimeSec < 10 ? '0' + segTimeSec : segTimeSec}`;
         
+        // スライダーが0の場合は元のターゲットペースに完全に戻すため、recalibrateをスキップするフラグを設定
         return {
           ...segment,
           customPace: segment.targetPace,
@@ -446,8 +447,15 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
         const segmentDistance = endDistance - startDistance;
         
         const segmentTimeMinutes = recalibratedPaceSeconds / 60 * segmentDistance;
-        const minutes = Math.floor(segmentTimeMinutes);
-        const seconds = Math.round((segmentTimeMinutes - minutes) * 60);
+        let minutes = Math.floor(segmentTimeMinutes);
+        let seconds = Math.round((segmentTimeMinutes - minutes) * 60);
+        
+        // 秒数が60になった場合は分に繰り上げる
+        if (seconds === 60) {
+          minutes += 1;
+          seconds = 0;
+        }
+        
         const segmentTime = `${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
         
         return {
