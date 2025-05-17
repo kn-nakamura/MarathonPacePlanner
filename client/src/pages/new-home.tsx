@@ -35,7 +35,7 @@ export default function Home() {
   // スプリット戦略を適用する効果
   useEffect(() => {
     // スプリット戦略が変更されたときにリアルタイムでペースを調整
-    if (segments.length === 0 || splitStrategy === 0) return;
+    if (segments.length === 0) return;
     
     const updatedSegments = segments.map((segment, index) => {
       // レース内の相対位置（0から1）

@@ -47,8 +47,16 @@ export function HorizontalPaceChart({
     
     // Calculate min/max pace for scaling
     const paceValues = segments.map(segment => paceToSeconds(segment.customPace));
-    const calculatedMinPace = Math.min(...paceValues) - 10; // 少し余裕を持たせる
-    const calculatedMaxPace = Math.max(...paceValues) + 10;
+    let calculatedMinPace = Math.min(...paceValues) - 10; // 少し余裕を持たせる
+    let calculatedMaxPace = Math.max(...paceValues) + 10;
+    
+    // 表示レンジを拡張してグラフを中央に表示
+    // 最小値と最大値の差を計算
+    const paceRange = calculatedMaxPace - calculatedMinPace;
+    
+    // レンジを30%拡張して横棒がちょうど中央に来るように調整
+    calculatedMinPace = calculatedMinPace - (paceRange * 0.15);
+    calculatedMaxPace = calculatedMaxPace + (paceRange * 0.15);
     
     setMinPace(calculatedMinPace);
     setMaxPace(calculatedMaxPace);
@@ -183,7 +191,9 @@ export function HorizontalPaceChart({
   // Custom tooltip formatter
   const paceTooltipFormatter = (value: any, name: string, props: any) => {
     if (name === 'pace') {
-      return secondsToPace(value);
+      // 秒数からMM:SS形式ではなく、分単位で表示
+      const minutes = (value / 60).toFixed(1);
+      return `${minutes} 分`;
     }
     return value;
   };
@@ -250,23 +260,6 @@ export function HorizontalPaceChart({
               dataKey="pace" 
               name="Pace"
               background={{ fill: '#eee' }}
-              label={(props) => {
-                const { x, y, width, height, value, index } = props;
-                const pace = chartData[index].paceText;
-                return (
-                  <text 
-                    x={x + 5} 
-                    y={y + height/2} 
-                    fill="#666"
-                    textAnchor="start" 
-                    dominantBaseline="middle"
-                    fontSize={isMobile ? 12 : 14}
-                    fontWeight="500"
-                  >
-                    {pace}
-                  </text>
-                );
-              }}
             >
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -275,32 +268,7 @@ export function HorizontalPaceChart({
           </BarChart>
         </ResponsiveContainer>
         
-        {/* 最速のセグメントに雷マークを表示 */}
-        {chartData.length > 0 && (
-          <div className="flex justify-end mr-16 -mt-8 relative z-10">
-            {(() => {
-              const fastestIndex = getFastestPaceIndex(chartData);
-              if (fastestIndex === -1) return null;
-              
-              // セグメント数からアイコンの位置を計算
-              const position = (fastestIndex / (chartData.length - 1)) * 100;
-              
-              return (
-                <div 
-                  className="absolute bg-white dark:bg-gray-800 rounded-full p-1 border-2 border-orange-500"
-                  style={{ 
-                    top: `${position}%`, 
-                    right: isMobile ? '10px' : '20px' 
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M13 10V3L4 14h7v7l9-11h-7z" fill="#ff8833" stroke="#000" strokeWidth="1"/>
-                  </svg>
-                </div>
-              );
-            })()}
-          </div>
-        )}
+{/* 雷マークは削除 */}
       </div>
     </div>
   );
