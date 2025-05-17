@@ -32,8 +32,46 @@ export default function Home() {
   const [ultraDistance, setUltraDistance] = useState<number>(100);
   const [splitStrategy, setSplitStrategy] = useState<number>(0); // 0 = even pace, negative = negative split, positive = positive split
   
-  // スプリット戦略を適用するために、手動でGenerateボタンを押してもらう
-  // この方式にすることで、即時反映ではなくユーザーの意図的な操作として処理します
+  // スプリット戦略を適用する効果
+  useEffect(() => {
+    // スプリット戦略が変更されたときにリアルタイムでペースを調整
+    if (segments.length === 0 || splitStrategy === 0) return;
+    
+    const updatedSegments = segments.map((segment, index) => {
+      // レース内の相対位置（0から1）
+      const position = index / (segments.length - 1);
+      
+      // スプリット調整量（-1.0から1.0）に変換、中央が0
+      const adjustment = (position - 0.5) * 2;
+      
+      // ペースを分:秒形式から秒に変換
+      const paceStr = segment.targetPace.replace('/km', '');
+      const [paceMin, paceSec] = paceStr.split(':').map(Number);
+      const paceInSeconds = (paceMin * 60) + paceSec;
+      
+      // スプリット戦略による調整（ネガティブ=後半速く、ポジティブ=前半速く）
+      const adjustmentInSeconds = -(adjustment * splitStrategy * paceInSeconds * 0.002);
+      
+      // 調整したペースを秒から分:秒形式に戻す
+      const newPaceInSeconds = Math.max(1, paceInSeconds + adjustmentInSeconds);
+      const newPaceMin = Math.floor(newPaceInSeconds / 60);
+      const newPaceSec = Math.round(newPaceInSeconds % 60);
+      
+      const adjustedPace = `${newPaceMin}:${newPaceSec < 10 ? '0' + newPaceSec : newPaceSec}/km`;
+      
+      // セグメント時間も再計算
+      const distance = parseFloat(segment.distance.split(' ')[0]);
+      const segmentTime = calculateTime(adjustedPace, distance);
+      
+      return {
+        ...segment,
+        customPace: adjustedPace,
+        segmentTime
+      };
+    });
+    
+    setSegments(updatedSegments);
+  }, [splitStrategy]);
   const { calculatePace, calculateTime } = usePaceConverter();
   const { toast } = useToast();
   
@@ -278,10 +316,9 @@ export default function Home() {
         }
       }
       
-      const segmentTime = calculateTime(defaultPace, segmentDistance);
-      
       // ここでスプリット戦略を適用
       let adjustedPace = defaultPace;
+      let segmentTime = calculateTime(defaultPace, segmentDistance);
       
       // スプリット戦略が設定されている場合
       if (splitStrategy !== 0) {
