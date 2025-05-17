@@ -320,8 +320,11 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
   const applyElevationToPacePlan = () => {
     if (elevationData.length === 0 || segments.length === 0) return;
     
+    // 外部のPacing Strategyスライダーの値を取得（UI側から提供される）
+    // Segment EditorのPacing Strategyスライダーとの重複を避けるために内部のpacingStrategyFactorは使用しない
+    
     // 両方のファクターが0の場合は、すべてのセグメントを元のターゲットペースに戻す
-    if (gradientFactor === 0 && pacingStrategyFactor === 0) {
+    if (gradientFactor === 0) {
       const resetSegments = segments.map(segment => {
         // 元のターゲットペースを使用
         const distanceMatch = segment.name.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
@@ -429,31 +432,22 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
         };
       }
       
-      // Apply gradient factor (from slider)
-      paceAdjustment = paceAdjustment * gradientFactor;
-      
-      // Apply pacing strategy factor - calculate segment position based adjustment
-      let pacingStrategyAdjustment = 0;
-      if (pacingStrategyFactor !== 0) {
-        // セグメントの位置を考慮（コース全体の何%地点か）
-        const totalDistance = parseFloat(segments[segments.length - 1].distance);
-        const segmentMidpoint = (startDistance + endDistance) / 2;
-        const positionPercentage = segmentMidpoint / totalDistance; // 0.0 to 1.0
-        
-        // -1.0 (faster start) to 1.0 (faster finish)の範囲で調整（負の値は前半が速い）
-        // positionPercentageが0に近いほど前半、1に近いほど後半
-        // pacingStrategyFactorが負なら前半速く(スタート重視)、正なら後半速く(フィニッシュ重視)
-        if (pacingStrategyFactor < 0) {
-          // Faster Start - 前半速く、後半遅く
-          pacingStrategyAdjustment = -pacingStrategyFactor * 30 * (1 - positionPercentage * 2); // 前半は負の値（速く）、後半は正の値（遅く）
-        } else {
-          // Faster Finish - 前半遅く、後半速く
-          pacingStrategyAdjustment = pacingStrategyFactor * 30 * (positionPercentage * 2 - 1); // 前半は正の値（遅く）、後半は負の値（速く）
-        }
+      // Apply gradient factor (from slider) - make sure we have a real effect even at low values
+      if (gradientFactor > 0) {
+        // グラデーションファクターが0より大きい場合のみ適用し、最小でも10%の効果を持つようにする
+        const minFactor = 0.2; // 最小でも20%の効果
+        const effectiveFactor = minFactor + (1.0 - minFactor) * gradientFactor;
+        console.log(`Applying gradient factor ${gradientFactor} (effective: ${effectiveFactor})`);
+        paceAdjustment = paceAdjustment * effectiveFactor;
+      } else {
+        // グラデーションファクターが0の場合は勾配によるペース調整なし
+        paceAdjustment = 0;
       }
       
-      // Combine both adjustment types
-      const finalPaceAdjustment = paceAdjustment + pacingStrategyAdjustment;
+      // Note: Pacing Strategy is now handled separately via the UI's existing Pacing Strategy slider
+      
+      // Use the gradient adjustment directly
+      const finalPaceAdjustment = paceAdjustment;
       
       // Apply pace adjustment - always start from target pace, not current custom pace
       const targetPaceSeconds = paceToSeconds(segment.targetPace);
@@ -913,8 +907,8 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
               {/* Gradient Adjustment Slider */}
               <div>
                 <div className="flex justify-between mb-1">
-                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Gradient Factor</span>
-                  <span className="text-sm text-gray-500 dark:text-gray-500">{Math.round(gradientFactor * 100)}%</span>
+                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Terrain Adjustment</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-500">{gradientFactor === 0 ? 'Off' : `${Math.round(gradientFactor * 100)}%`}</span>
                 </div>
                 <Slider 
                   min={0} 
@@ -927,44 +921,22 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
                     console.log(`Gradient factor changed to ${newValue}`);
                     
                     setGradientFactor(newValue);
+                    // 直接ここで関数を呼び出す
                     applyElevationToPacePlan();
                   }}
                   className="w-full"
                 />
                 <div className="flex justify-between mt-1 text-xs text-gray-500">
-                  <span>None</span>
+                  <span>Off</span>
                   <span>Normal</span>
                   <span>Strong</span>
                 </div>
+                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  Adjusts pace based on terrain (slower for uphills, faster for downhills)
+                </div>
               </div>
               
-              {/* Pacing Strategy Slider */}
-              <div>
-                <div className="flex justify-between mb-1">
-                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Pacing Strategy Factor</span>
-                  <span className="text-sm text-gray-500 dark:text-gray-500">{Math.round(pacingStrategyFactor * 100)}%</span>
-                </div>
-                <Slider 
-                  min={-1} 
-                  max={1} 
-                  step={0.1}
-                  value={[pacingStrategyFactor]} 
-                  onValueChange={(vals) => {
-                    // スライダー値を更新した後、即座にペースプランに適用
-                    const newValue = vals[0];
-                    console.log(`Pacing strategy factor changed to ${newValue}`);
-                    
-                    setPacingStrategyFactor(newValue);
-                    applyElevationToPacePlan();
-                  }}
-                  className="w-full"
-                />
-                <div className="flex justify-between mt-1 text-xs text-gray-500">
-                  <span>Faster Finish</span>
-                  <span>Even</span>
-                  <span>Faster Start</span>
-                </div>
-              </div>
+              {/* Remove the duplicated Pacing Strategy slider since it's already available in the UI */}
               
               {/* Reset Button */}
               <div className="text-center">
