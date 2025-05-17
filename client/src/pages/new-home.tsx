@@ -491,6 +491,10 @@ export default function Home() {
                 segments={segments}
                 onUpdateSegment={handleUpdateSegment}
                 onUpdateRemainingSegments={handleUpdateRemainingSegments}
+                splitStrategy={{
+                  value: splitStrategy,
+                  onChange: setSplitStrategy
+                }}
               />
               
               <div className="mt-4 flex justify-end">
