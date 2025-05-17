@@ -19,7 +19,6 @@ import { formatTime, calculateTotalTime, calculateAveragePace } from '@/utils/pa
 import { apiRequest } from '@/lib/queryClient';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { GPXAnalyzer } from '@/components/gpx/gpx-analyzer';
 import { toPng } from 'html-to-image';
 
 export default function Home() {
@@ -503,18 +502,17 @@ export default function Home() {
             </CardContent>
           </Card>
           
-          {/* GPX Elevation Analysis */}
+          {/* GPX Elevation Analysis - Coming Soon */}
           <Card>
             <CardHeader>
               <CardTitle>地形分析とペース最適化</CardTitle>
             </CardHeader>
             <CardContent>
-              <GPXAnalyzer
-                segments={segments}
-                raceDistance={raceDistance}
-                ultraDistance={ultraDistance}
-                onUpdateSegments={setSegments}
-              />
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                <p className="text-blue-700 dark:text-blue-300 text-sm">
+                  地形に基づくペース調整機能は近日公開予定です。GPXファイルをアップロードすると、地形に合わせて最適なペースを自動的に調整します。
+                </p>
+              </div>
             </CardContent>
           </Card>
           
