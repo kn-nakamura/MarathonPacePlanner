@@ -115,10 +115,23 @@ export function PaceChart({ segments, targetTime, exportMode = false, height = 3
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // Calculate min and max pace values for y-axis (with padding)
-  const paceValues = chartData.flatMap(d => [d.pace, d.targetPace]);
-  const minPaceValue = Math.max(0, Math.min(...paceValues) - 15); // Add padding, but don't go below 0
-  const maxPaceValue = Math.max(...paceValues) + 15; // Add padding
+  // Calculate min and max pace values for y-axis (with padding and 10-second intervals)
+  const allPaceValues = chartData.flatMap(d => [d.pace, d.targetPace]);
+  // Round down to nearest 10 seconds for min, round up for max
+  const minPaceValue = Math.max(0, Math.floor(Math.min(...allPaceValues, 300) / 10) * 10 - 20); 
+  const maxPaceValue = Math.ceil(Math.max(...allPaceValues, 360) / 10) * 10 + 20;
+  
+  // 10秒刻みの目盛りを生成する関数
+  const generatePaceTicks = (min: number, max: number, step: number = 10) => {
+    const ticks: number[] = [];
+    for (let i = Math.floor(min / step) * step; i <= Math.ceil(max / step) * step; i += step) {
+      // 30秒区切りの分だけ表示する (例: 4:00, 4:30, 5:00...)
+      if (i % 30 === 0) {
+        ticks.push(i);
+      }
+    }
+    return ticks;
+  };
   
   // Custom label component for cumulative times
   const CustomizedLabel = (props: any) => {
@@ -167,7 +180,7 @@ export function PaceChart({ segments, targetTime, exportMode = false, height = 3
         ref={chartRef} 
         className={!exportMode ? "bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700" : ""}
       >
-        <ResponsiveContainer width="100%" height={exportMode ? 400 : height}>
+        <ResponsiveContainer width="100%" height={exportMode ? 500 : height + 100}>
           <LineChart
             data={chartData}
             margin={{
@@ -181,13 +194,21 @@ export function PaceChart({ segments, targetTime, exportMode = false, height = 3
             <XAxis 
               dataKey="distance" 
               label={{ 
-                value: 'Distance', 
+                value: 'Distance (km)', 
                 position: 'insideBottomRight', 
                 offset: -10,
-                style: { fontSize: isMobile ? 10 : 12 }
+                style: { 
+                  fontSize: isMobile ? 10 : 12,
+                  fill: document.documentElement.classList.contains('dark') ? '#d1d5db' : '#4b5563'
+                }
               }}
               tick={{ fontSize: isMobile ? 8 : 10 }}
-              interval={0} // 全てのデータポイントを表示
+              tickFormatter={(value) => {
+                // 5km単位のポイントのみ表示
+                const distance = parseFloat(value);
+                return distance % 5 === 0 || distance === 42.2 ? value : '';
+              }}
+              interval={0}
             />
             <YAxis 
               label={{ 
