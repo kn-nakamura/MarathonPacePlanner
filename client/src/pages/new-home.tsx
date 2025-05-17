@@ -19,6 +19,7 @@ import { formatTime, calculateTotalTime, calculateAveragePace } from '@/utils/pa
 import { apiRequest } from '@/lib/queryClient';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { GPXAnalyzer } from '@/components/gpx/gpx-analyzer';
 import { toPng } from 'html-to-image';
 
 export default function Home() {

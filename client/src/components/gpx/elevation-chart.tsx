@@ -23,10 +23,10 @@ interface CustomTooltipProps {
 }
 
 const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
-  if (active && payload && payload.length) {
+  if (active && payload && payload.length && label) {
     return (
       <div className="bg-white dark:bg-gray-800 p-2 border border-gray-200 dark:border-gray-700 rounded shadow-sm text-xs">
-        <p className="font-semibold">{`距離: ${parseFloat(label).toFixed(2)} km`}</p>
+        <p className="font-semibold">{`距離: ${parseFloat(String(label)).toFixed(2)} km`}</p>
         <p>{`標高: ${payload[0].value} m`}</p>
         <p>{`累積上昇: ${payload[0].payload.cumElevGain.toFixed(0)} m`}</p>
         <p>{`累積下降: ${payload[0].payload.cumElevLoss.toFixed(0)} m`}</p>
