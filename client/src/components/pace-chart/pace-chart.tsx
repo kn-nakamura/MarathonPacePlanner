@@ -215,9 +215,20 @@ export function PaceChart({ segments, targetTime, exportMode = false, height = 3
               }}
               tick={{ fontSize: isMobile ? 8 : 10 }}
               tickFormatter={(value) => {
-                // 5km単位のポイントのみ表示
+                // レースタイプに応じた表示方法
                 const distance = parseFloat(value);
-                return distance % 5 === 0 || distance === 42.2 ? value : '';
+                const isRace = segments.length > 0 && segments[0].distance !== undefined;
+                
+                // 最後の距離は常に表示
+                const isLast = segments.length > 0 && value === segments[segments.length - 1].distance;
+                
+                // 5K・10Kの場合は1km単位、それ以外は5km単位
+                const is5kOr10k = segments.length <= 10 && segments.length >= 5;
+                
+                if (isLast || (is5kOr10k && distance % 1 === 0) || (!is5kOr10k && (distance % 5 === 0 || distance === 42.195))) {
+                  return value;
+                }
+                return '';
               }}
               interval={0}
             />

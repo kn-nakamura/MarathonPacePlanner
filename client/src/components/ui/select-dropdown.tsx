@@ -33,7 +33,7 @@ export function TimeSelectDropdowns({
             <SelectValue placeholder="Hr" />
           </SelectTrigger>
           <SelectContent>
-            {Array.from({ length: 7 }, (_, i) => (
+            {Array.from({ length: 73 }, (_, i) => (
               <SelectItem key={`hour-${i}`} value={String(i)}>
                 {i}
               </SelectItem>

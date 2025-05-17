@@ -97,9 +97,10 @@ export default function Home() {
   // Format the target time
   const targetTime = `${targetHours}:${targetMinutes}:${targetSeconds}`;
 
-  // Calculate total time and average pace
+  // Calculate total time and average pace based on selected race distance
   const totalTime = calculateTotalTime(segments);
-  const averagePace = calculateAveragePace(totalTime, 42.2);
+  const distanceValue = raceDistance === 'Ultra' ? ultraDistance : RACE_DISTANCES[raceDistance]; 
+  const averagePace = calculateAveragePace(totalTime, distanceValue);
 
   // 平均ペース入力用
   const [averagePaceInput, setAveragePaceInput] = useState<string>("");

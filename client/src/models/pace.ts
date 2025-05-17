@@ -19,13 +19,13 @@ export interface PacePlan {
 // Race distance types
 export type RaceDistance = '5K' | '10K' | 'Half' | 'Full' | 'Ultra';
 
-// Race distances in kilometers
+// Race distances in kilometers (正確な値)
 export const RACE_DISTANCES = {
   '5K': 5,
   '10K': 10,
-  'Half': 21.1,
-  'Full': 42.195,
-  'Ultra': 100 // Default for ultra
+  'Half': 21.0975, // 正確なハーフマラソン距離
+  'Full': 42.195,  // 正確なフルマラソン距離
+  'Ultra': 100     // Default for ultra
 };
 
 // Default segments for different race distances
@@ -49,31 +49,78 @@ export const generateSegments = (distance: RaceDistance, customUltraDistance?: n
     segmentSize = 10; // 10km segments for ultra
   }
   
-  // Create full segments
+  // Create full segments with precise distances
   let currentDistance = segmentSize;
-  while (currentDistance < totalDistance) {
-    segments.push({ 
-      id: id++, 
-      name: `Segment ${id-1}`, 
-      distance: currentDistance.toString(), 
-      targetPace: defaultPace, 
-      customPace: defaultPace, 
-      segmentTime: `${segmentSize * 5}:00` // Default 5:00/km pace for the segment size
-    });
-    currentDistance += segmentSize;
-  }
   
-  // Add final segment if needed
-  const remainingDistance = totalDistance - (currentDistance - segmentSize);
-  if (remainingDistance > 0) {
-    segments.push({
-      id: id++,
-      name: 'Final',
-      distance: totalDistance.toString(),
-      targetPace: defaultPace,
-      customPace: defaultPace,
-      segmentTime: `${Math.round(remainingDistance * 5)}:00`
-    });
+  // For 5K and 10K, create exactly 5 or 10 segments of 1km each
+  if (distance === '5K' || distance === '10K') {
+    const totalSegments = distance === '5K' ? 5 : 10;
+    
+    for (let i = 0; i < totalSegments; i++) {
+      segments.push({
+        id: id++,
+        name: i === 0 ? 'Start' : `${i+1}km`,
+        distance: (i+1).toString(),
+        targetPace: defaultPace,
+        customPace: defaultPace,
+        segmentTime: '5:00' // Default 5:00/km pace
+      });
+    }
+  } 
+  // For half and full marathon, use 5km segments with precise final segment
+  else if (distance === 'Half' || distance === 'Full') {
+    // Create 5km segments
+    while (currentDistance + segmentSize <= totalDistance) {
+      segments.push({ 
+        id: id++, 
+        name: currentDistance === segmentSize ? 'Start' : `${currentDistance}km`, 
+        distance: currentDistance.toString(), 
+        targetPace: defaultPace, 
+        customPace: defaultPace, 
+        segmentTime: `${segmentSize * 5}:00` // Default 5:00/km pace
+      });
+      currentDistance += segmentSize;
+    }
+    
+    // Add final segment with precise distance (e.g., 21.0975 for half)
+    const remainingDistance = totalDistance - (currentDistance - segmentSize);
+    if (remainingDistance > 0) {
+      segments.push({
+        id: id++,
+        name: 'Final',
+        distance: totalDistance.toFixed(4), // Keep precise distance
+        targetPace: defaultPace,
+        customPace: defaultPace,
+        segmentTime: `${Math.round(remainingDistance * 5)}:00`
+      });
+    }
+  }
+  // For ultra, use 10km segments
+  else {
+    while (currentDistance + segmentSize <= totalDistance) {
+      segments.push({ 
+        id: id++, 
+        name: currentDistance === segmentSize ? 'Start' : `${currentDistance}km`, 
+        distance: currentDistance.toString(), 
+        targetPace: defaultPace, 
+        customPace: defaultPace, 
+        segmentTime: `${segmentSize * 5}:00` // Default 5:00/km pace
+      });
+      currentDistance += segmentSize;
+    }
+    
+    // Add final segment if needed
+    const remainingDistance = totalDistance - (currentDistance - segmentSize);
+    if (remainingDistance > 0) {
+      segments.push({
+        id: id++,
+        name: 'Final',
+        distance: totalDistance.toString(),
+        targetPace: defaultPace,
+        customPace: defaultPace,
+        segmentTime: `${Math.round(remainingDistance * 5)}:00`
+      });
+    }
   }
   
   return segments;
