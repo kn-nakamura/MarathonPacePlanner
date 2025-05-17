@@ -380,10 +380,18 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
       // スライダーが0の場合は元のターゲットペースに戻す
       if (paceAdjustmentFactor === 0) {
         // ターゲットペースを使用（元のペース）
+        const targetTime = segment.targetPace.replace('/km', '');
+        const [min, sec] = targetTime.split(':').map(Number);
+        const totalSeconds = min * 60 + sec;
+        const segTimeSeconds = totalSeconds * segmentDistance;
+        const segTimeMin = Math.floor(segTimeSeconds / 60);
+        const segTimeSec = Math.round(segTimeSeconds % 60);
+        const segmentTimeFormatted = `${segTimeMin}:${segTimeSec < 10 ? '0' + segTimeSec : segTimeSec}`;
+        
         return {
           ...segment,
           customPace: segment.targetPace,
-          segmentTime: calculateSegmentTime(segment.targetPace, segmentDistance)
+          segmentTime: segmentTimeFormatted
         };
       }
       
@@ -823,7 +831,11 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
                   max={2} 
                   step={0.1}
                   value={[paceAdjustmentFactor]} 
-                  onValueChange={(vals) => setPaceAdjustmentFactor(vals[0])}
+                  onValueChange={(vals) => {
+                    setPaceAdjustmentFactor(vals[0]);
+                    // スライダーを動かすとリアルタイムでペースが更新される
+                    setTimeout(() => applyElevationToPacePlan(), 10);
+                  }}
                   className="w-full"
                 />
                 <div className="flex justify-between mt-1 text-xs text-gray-500">
