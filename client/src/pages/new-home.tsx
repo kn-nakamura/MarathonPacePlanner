@@ -60,9 +60,9 @@ export default function Home() {
       
       const adjustedPace = `${newPaceMin}:${newPaceSec < 10 ? '0' + newPaceSec : newPaceSec}/km`;
       
-      // セグメント時間も再計算
+      // セグメント時間も再計算 - calculateTimeではなくcalculateSegmentTimeを使用
       const distance = parseFloat(segment.distance.split(' ')[0]);
-      const segmentTime = calculateTime(adjustedPace, distance);
+      const segmentTime = calculateSegmentTime(adjustedPace, distance);
       
       return {
         ...segment,
@@ -328,7 +328,7 @@ export default function Home() {
       
       // ここでスプリット戦略を適用
       let adjustedPace = defaultPace;
-      let segmentTime = calculateTime(defaultPace, segmentDistance);
+      let segmentTime = calculateSegmentTime(defaultPace, segmentDistance);
       
       // スプリット戦略が設定されている場合
       if (splitStrategy !== 0) {
@@ -354,8 +354,8 @@ export default function Home() {
         
         adjustedPace = `${newPaceMin}:${newPaceSec < 10 ? '0' + newPaceSec : newPaceSec}/km`;
         
-        // セグメント時間も再計算
-        segmentTime = calculateTime(adjustedPace, segmentDistance);
+        // セグメント時間も再計算 - calculateTimeではなくcalculateSegmentTimeを使用
+        segmentTime = calculateSegmentTime(adjustedPace, segmentDistance);
       }
       
       return {
@@ -379,8 +379,8 @@ export default function Home() {
     const newSegments = [...segments];
     newSegments[index] = {
       ...updatedSegment,
-      segmentTime: calculateTime(updatedSegment.customPace, 
-        index === segments.length - 1 ? 2.2 : 5) // Last segment is 2.2km
+      segmentTime: calculateSegmentTime(updatedSegment.customPace, 
+        parseFloat(updatedSegment.distance.split(' ')[0])) // 実際のセグメント距離を使う
     };
     setSegments(newSegments);
   };
@@ -393,7 +393,7 @@ export default function Home() {
         return {
           ...segment,
           customPace: pace,
-          segmentTime: calculateTime(pace, distance)
+          segmentTime: calculateSegmentTime(pace, distance)
         };
       }
       return segment;
