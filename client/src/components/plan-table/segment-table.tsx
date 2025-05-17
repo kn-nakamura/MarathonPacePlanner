@@ -106,14 +106,28 @@ export function SegmentTable({ segments, onUpdateSegment, onUpdateRemainingSegme
                   />
                 </TableCell>
                 <TableCell className={isMobile ? "py-1 px-1 sm:py-1.5 sm:px-2" : ""}>
-                  {/* 区間タイム - 直接計算して表示する（累積を避けるため） */}
+                  {/* 区間タイム - セグメント間の距離（区間距離）で計算して表示 */}
                   {(() => {
-                    const distance = parseFloat(segment.distance.split(' ')[0]);
+                    // セグメント間の距離を計算
+                    let segmentDistance = 0;
+                    const currentKm = parseFloat(segment.distance.split(' ')[0]);
+                    
+                    if (index === 0) {
+                      // 最初のセグメントは距離そのもの
+                      segmentDistance = currentKm;
+                    } else {
+                      // 2つ目以降は前のセグメントとの差分
+                      const prevKm = parseFloat(segments[index-1].distance.split(' ')[0]);
+                      segmentDistance = currentKm - prevKm;
+                    }
+                    
+                    // ペースから時間を計算
                     const paceStr = segment.customPace.replace('/km', '');
                     const [min, sec] = paceStr.split(':').map(Number);
                     const paceSeconds = (min * 60) + sec;
-                    const totalSeconds = paceSeconds * distance;
+                    const totalSeconds = paceSeconds * segmentDistance;
                     
+                    // 時間形式に変換
                     const hours = Math.floor(totalSeconds / 3600);
                     const minutes = Math.floor((totalSeconds % 3600) / 60);
                     const seconds = Math.round(totalSeconds % 60);
