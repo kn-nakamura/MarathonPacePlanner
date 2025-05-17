@@ -106,8 +106,23 @@ export function SegmentTable({ segments, onUpdateSegment, onUpdateRemainingSegme
                   />
                 </TableCell>
                 <TableCell className={isMobile ? "py-1 px-1 sm:py-1.5 sm:px-2" : ""}>
-                  {/* 区間タイム - segmentTimeをそのまま表示 */}
-                  {segment.segmentTime}
+                  {/* 区間タイム - 直接計算して表示する（累積を避けるため） */}
+                  {(() => {
+                    const distance = parseFloat(segment.distance.split(' ')[0]);
+                    const paceStr = segment.customPace.replace('/km', '');
+                    const [min, sec] = paceStr.split(':').map(Number);
+                    const paceSeconds = (min * 60) + sec;
+                    const totalSeconds = paceSeconds * distance;
+                    
+                    const hours = Math.floor(totalSeconds / 3600);
+                    const minutes = Math.floor((totalSeconds % 3600) / 60);
+                    const seconds = Math.round(totalSeconds % 60);
+                    
+                    if (hours > 0) {
+                      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    }
+                    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                  })()}
                 </TableCell>
                 <TableCell className={`font-semibold text-primary-600 dark:text-primary-400 ${isMobile ? "py-1 px-1 sm:py-1.5 sm:px-2" : ""}`}>
                   {cumulativeTimes[index] || ''}
