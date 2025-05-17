@@ -6,6 +6,7 @@ import { Upload, Info, MapPin } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -103,6 +104,7 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
   const [totalElevGain, setTotalElevGain] = useState(0);
   const [totalElevLoss, setTotalElevLoss] = useState(0);
   const [mapPoints, setMapPoints] = useState<LatLngTuple[]>([]);
+  const [showElevationColors, setShowElevationColors] = useState<boolean>(true);
   const [segmentAnalysis, setSegmentAnalysis] = useState<{
     segmentName: string;
     startDist: number;
@@ -711,7 +713,18 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
             
             <Card>
               <CardContent className="p-4">
-                <h3 className="text-lg font-bold mb-3">Course Map</h3>
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-lg font-bold">Course Map</h3>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-500">
+                      {showElevationColors ? '標高表示' : '通常表示'}
+                    </span>
+                    <Switch 
+                      checked={showElevationColors}
+                      onCheckedChange={setShowElevationColors}
+                    />
+                  </div>
+                </div>
                 <div className="h-[350px]">
                   {mapPoints.length > 0 ? (
                     <MapContainer 
@@ -726,11 +739,40 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
                         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       />
                       
-                      <Polyline 
-                        positions={mapPoints} 
-                        color="blue" 
-                        weight={3}
-                      />
+                      {showElevationColors ? (
+                        // 標高に基づいた色付きのセグメント
+                        elevationData.length > 1 && elevationData.map((point, index) => {
+                          if (index === 0) return null;
+                          
+                          // 標高の変化に基づいて色を決定
+                          const prevPoint = elevationData[index - 1];
+                          const elevDiff = point.elevation - prevPoint.elevation;
+                          
+                          // 色のグラデーション: 赤(上り急) -> オレンジ(上り) -> 緑(平坦) -> 青(下り) -> 紫(下り急)
+                          let color;
+                          if (elevDiff > 10) color = "#FF4136"; // 赤: 急な上り
+                          else if (elevDiff > 0) color = "#FF851B"; // オレンジ: 緩やかな上り
+                          else if (elevDiff > -10) color = "#2ECC40"; // 緑: ほぼ平坦
+                          else if (elevDiff > -20) color = "#0074D9"; // 青: 緩やかな下り
+                          else color = "#B10DC9"; // 紫: 急な下り
+                          
+                          return (
+                            <Polyline 
+                              key={`elev-${index}`}
+                              positions={[[prevPoint.lat!, prevPoint.lon!], [point.lat!, point.lon!]]}
+                              color={color} 
+                              weight={4}
+                            />
+                          );
+                        })
+                      ) : (
+                        // 単色の青いルート
+                        <Polyline 
+                          positions={mapPoints} 
+                          color="#3B82F6" 
+                          weight={3}
+                        />
+                      )}
                       
                       {/* Start marker */}
                       {mapPoints.length > 0 && (
