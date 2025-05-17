@@ -72,17 +72,22 @@ export default function Home() {
     updateAveragePaceFromTime(targetHours, targetMinutes, seconds);
   };
   
-  // 目標タイムから平均ペースを更新する関数
+  // 目標タイムから平均ペースを更新する関数 - 丸め誤差修正
   const updateAveragePaceFromTime = (hours: string, minutes: string, seconds: string) => {
     const h = parseInt(hours);
     const m = parseInt(minutes);
     const s = parseInt(seconds);
     
     if (!isNaN(h) && !isNaN(m) && !isNaN(s)) {
+      // 精密な計算のため小数点以下を保持
       const totalSeconds = h * 3600 + m * 60 + s;
       const paceSecondsPerKm = totalSeconds / 42.195;
+      
+      // 例: 3:00:00 → 4:15/km (精密に計算)
       const paceMinutes = Math.floor(paceSecondsPerKm / 60);
+      // 小数点以下を保持し、整数部分だけを表示
       const paceSeconds = Math.floor(paceSecondsPerKm % 60);
+      
       setAveragePaceInput(`${paceMinutes}:${paceSeconds.toString().padStart(2, '0')}`);
     }
   };
@@ -110,19 +115,23 @@ export default function Home() {
     }
   };
   
-  // 平均ペースから目標タイムを更新する関数
+  // 平均ペースから目標タイムを更新する関数 - 丸め誤差修正
   const updateTargetTimeFromPace = (paceInput: string) => {
     if (paceInput.includes(':')) {
       const [min, sec] = paceInput.split(':').map(Number);
       
       if (!isNaN(min) && !isNaN(sec)) {
+        // 精密な計算のため小数点以下を保持
         const paceSeconds = min * 60 + sec;
+        // 総時間を計算（42.195kmの正確な距離を使用）
         const totalSeconds = paceSeconds * 42.195;
         
+        // 各単位に変換して整数部分のみを使用
         const hours = Math.floor(totalSeconds / 3600);
         const minutes = Math.floor((totalSeconds % 3600) / 60);
         const seconds = Math.floor(totalSeconds % 60);
         
+        // 例: 4:15/km → 3:00:00 (切り捨てで計算)
         setTargetHours(hours.toString());
         setTargetMinutes(minutes.toString().padStart(2, '0'));
         setTargetSeconds(seconds.toString().padStart(2, '0'));

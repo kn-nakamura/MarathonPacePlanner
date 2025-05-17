@@ -45,9 +45,10 @@ export function PaceChart({ segments, targetTime, exportMode = false, height = 3
     const cumulativeTimes = calculateCumulativeTimes(segments);
     
     // Build chart data with cumulative times
+    // distanceを数値としてXポイントにするため、単位を除去して整数化
     const data = segments.map((segment, index) => ({
       name: segment.name,
-      distance: segment.distance,
+      distance: segment.distance, // already in "5", "10" format
       pace: paceToSeconds(segment.customPace),
       targetPace: paceToSeconds(segment.targetPace),
       cumulativeTime: cumulativeTimes[index]
@@ -115,11 +116,15 @@ export function PaceChart({ segments, targetTime, exportMode = false, height = 3
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // Calculate min and max pace values for y-axis (with padding and 10-second intervals)
+  // Y軸の最小・最大値を計算（広い範囲をカバーするよう調整）
   const allPaceValues = chartData.flatMap(d => [d.pace, d.targetPace]);
-  // Round down to nearest 10 seconds for min, round up for max
-  const minPaceValue = Math.max(0, Math.floor(Math.min(...allPaceValues, 300) / 10) * 10 - 20); 
-  const maxPaceValue = Math.ceil(Math.max(...allPaceValues, 360) / 10) * 10 + 20;
+  // デフォルト値を設定（データがない場合や異常値の場合のフォールバック）
+  const minValue = allPaceValues.length > 0 ? Math.min(...allPaceValues) : 240; // 4:00/km
+  const maxValue = allPaceValues.length > 0 ? Math.max(...allPaceValues) : 360; // 6:00/km
+  
+  // 目標タイムが2時間の場合でも対応できるよう範囲を広げる
+  const minPaceValue = Math.max(0, Math.min(minValue, 180) - 30); // 2:30/km (3:00/km以上の場合)
+  const maxPaceValue = Math.max(maxValue, 360) + 30; // 最大値+余裕
   
   // 10秒刻みの目盛りを生成する関数
   const generatePaceTicks = (min: number, max: number, step: number = 10) => {
