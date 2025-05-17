@@ -117,7 +117,7 @@ export default function Home() {
         setTargetSeconds(seconds);
         
         // Set segments
-        setSegments(plan.segments);
+        setBaseSegments(plan.segments);
         
         toast({
           title: 'Plan Restored',
@@ -325,8 +325,8 @@ export default function Home() {
       defaultPace = `${paceMinutes}:${paceSeconds.toString().padStart(2, '0')}/km`;
     }
     
-    // Create new segments with calculated pace based on race distance
-    const newSegments = segments.map((segment, index) => {
+    // Create new base segments with calculated pace based on race distance
+    const newBaseSegments = generateSegments(raceDistance, raceDistance === 'Ultra' ? ultraDistance : undefined).map((segment, index) => {
       let segmentDistance: number;
       
       // Different segment calculation based on race type
@@ -334,66 +334,40 @@ export default function Home() {
         segmentDistance = 1; // 1km segments for short races
       } else if (raceDistance === 'Half' || raceDistance === 'Full') {
         // For half and full marathon
-        if (index === segments.length - 1) {
+        const totalSegments = generateSegments(raceDistance).length;
+        if (index === totalSegments - 1) {
           // Calculate final segment distance (might be partial)
           const totalDistance = raceDistance === 'Half' ? 21.1 : 42.195;
-          const remainingDistance = totalDistance - (5 * (segments.length - 1));
+          const remainingDistance = totalDistance - (5 * (totalSegments - 1));
           segmentDistance = Math.max(0.1, remainingDistance);
         } else {
           segmentDistance = 5; // 5km segments
         }
       } else {
         // Ultra marathon
-        if (index === segments.length - 1) {
+        const totalSegments = generateSegments(raceDistance, ultraDistance).length;
+        if (index === totalSegments - 1) {
           // Calculate final segment distance (might be partial)
-          const remainingDistance = ultraDistance - (10 * (segments.length - 1));
+          const remainingDistance = ultraDistance - (10 * (totalSegments - 1));
           segmentDistance = Math.max(0.1, remainingDistance);
         } else {
           segmentDistance = 10; // 10km segments
         }
       }
       
-      // ここでスプリット戦略を適用
-      let adjustedPace = defaultPace;
-      let segmentTime = calculateSegmentTime(defaultPace, segmentDistance);
-      
-      // スプリット戦略が設定されている場合
-      if (splitStrategy !== 0) {
-        // レース内の相対位置（0から1）
-        const position = index / (segments.length - 1);
-        
-        // スプリット調整量（-1.0から1.0）に変換、中央が0
-        const adjustment = (position - 0.5) * 2;
-        
-        // ペースを分:秒形式から秒に変換
-        const [paceMin, paceSec] = defaultPace.replace('/km','').split(':').map(Number);
-        const paceInSeconds = (paceMin * 60) + paceSec;
-        
-        // スプリット戦略による調整（マイナス値=後半速く、プラス値=前半速く）
-        // splitStrategyは-50から50の値
-        // 調整方向を反転（ポジティブスプリットは前半が遅い＝前半のペース秒数が大きい）
-        const adjustmentInSeconds = (adjustment * splitStrategy * paceInSeconds * 0.002);
-        
-        // 調整したペースを秒から分:秒形式に戻す
-        const newPaceInSeconds = Math.max(1, paceInSeconds + adjustmentInSeconds);
-        const newPaceMin = Math.floor(newPaceInSeconds / 60);
-        const newPaceSec = Math.round(newPaceInSeconds % 60);
-        
-        adjustedPace = `${newPaceMin}:${newPaceSec < 10 ? '0' + newPaceSec : newPaceSec}/km`;
-        
-        // セグメント時間も再計算 - calculateTimeではなくcalculateSegmentTimeを使用
-        segmentTime = calculateSegmentTime(adjustedPace, segmentDistance);
-      }
+      // ベースセグメントにはデフォルトペースのみを設定
+      // 調整（スプリット戦略と勾配）はcalculateDisplaySegmentsで適用
+      const segmentTime = calculateSegmentTime(defaultPace, segmentDistance);
       
       return {
         ...segment,
         targetPace: defaultPace,
-        customPace: adjustedPace,
+        customPace: defaultPace,
         segmentTime
       };
     });
     
-    setSegments(newSegments);
+    setBaseSegments(newBaseSegments);
     
     toast({
       title: 'Plan Generated',
@@ -414,19 +388,17 @@ export default function Home() {
   
   // Update pace for all remaining segments
   const handleUpdateRemainingSegments = (startIndex: number, pace: string) => {
-    const newSegments = segments.map((segment, i) => {
+    const newBaseSegments = baseSegments.map((segment, i) => {
       if (i >= startIndex) {
-        const distance = i === segments.length - 1 ? 2.195 : 5;
         return {
           ...segment,
-          customPace: pace,
-          segmentTime: calculateSegmentTime(pace, distance)
+          targetPace: pace
         };
       }
       return segment;
     });
     
-    setSegments(newSegments);
+    setBaseSegments(newBaseSegments);
   };
   
   // Mutation for saving plan
@@ -460,7 +432,7 @@ export default function Home() {
     const plan: PacePlan = {
       name: planName || `Marathon Plan (${targetTime})`,
       targetTime,
-      segments,
+      segments: displaySegments,  // 表示用セグメントを使用
       totalTime,
       createdAt: new Date()
     };
@@ -606,7 +578,7 @@ export default function Home() {
             
             <div className="mt-4 flex justify-end">
               <ExportSegmentTable
-                segments={segments}
+                segments={displaySegments}
                 targetTime={targetTime}
                 totalTime={totalTime}
                 averagePace={averagePace}
