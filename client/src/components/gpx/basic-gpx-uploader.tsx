@@ -108,7 +108,7 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
     gradient: number;
     isUphill: boolean;
   }[]>([]);
-  const [paceAdjustmentFactor, setPaceAdjustmentFactor] = useState<number>(1.0); // 1.0 = 100% of calculated adjustment
+  const [paceAdjustmentFactor, setPaceAdjustmentFactor] = useState<number>(0.0); // 0.0 = no adjustment by default
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
   
@@ -368,13 +368,6 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
         } else if (analysis.gradient < -2) {
           paceAdjustment = -8; // -8 sec/km for moderate downhills
         }
-        
-        console.log(`Segment "${segment.name}" terrain analysis:`, {
-          'Elevation Gain': analysis.elevGain + "m",
-          'Elevation Loss': analysis.elevLoss + "m", 
-          'Gradient': analysis.gradient + "%",
-          'Base Pace Adjustment': paceAdjustment + " sec/km"
-        });
       }
       
       // スライダーが0の場合は元のターゲットペースに戻す
