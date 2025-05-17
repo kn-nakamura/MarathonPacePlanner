@@ -128,11 +128,12 @@ export default function Home() {
       const totalTargetSeconds = hours * 3600 + minutes * 60 + seconds;
       
       // 正確なペース計算（例：3:30:00 → 4:58/km）
+      // 丸め誤差を避けるため、少し速いペースにする
       const paceSecondsPerKm = totalTargetSeconds / 42.195;
       
       // Convert to MM:SS/km format
       const paceMinutes = Math.floor(paceSecondsPerKm / 60);
-      const paceSeconds = Math.round(paceSecondsPerKm % 60);
+      const paceSeconds = Math.floor(paceSecondsPerKm % 60); // roundではなくfloorを使う
       defaultPace = `${paceMinutes}:${paceSeconds.toString().padStart(2, '0')}/km`;
     }
     
