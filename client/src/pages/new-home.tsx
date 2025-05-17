@@ -141,6 +141,57 @@ export default function Home() {
     }
   };
   
+  // Race distance handlers
+  const handleRaceDistanceChange = (newDistance: RaceDistance) => {
+    setRaceDistance(newDistance);
+    
+    // Generate new segments based on selected race distance
+    const newSegments = generateSegments(newDistance, newDistance === 'Ultra' ? ultraDistance : undefined);
+    setSegments(newSegments);
+    
+    // Adjust target time based on new distance
+    updateTargetTimeForDistance(newDistance);
+  };
+  
+  // Handle ultra distance change
+  const handleUltraDistanceChange = (newDistance: number) => {
+    setUltraDistance(newDistance);
+    if (raceDistance === 'Ultra') {
+      // Regenerate segments for ultra with new distance
+      const newSegments = generateSegments('Ultra', newDistance);
+      setSegments(newSegments);
+    }
+  };
+  
+  // Update target time based on selected distance
+  const updateTargetTimeForDistance = (distance: RaceDistance) => {
+    const distanceValue = distance === 'Ultra' ? ultraDistance : RACE_DISTANCES[distance];
+    
+    // Only adjust time if we're not in average pace mode
+    if (!averagePaceMode) {
+      // Get current pace from marathon time
+      const [hours, minutes, seconds] = targetTime.split(':').map(Number);
+      const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+      
+      // Get current distance to use as reference
+      const currentDistance = RACE_DISTANCES[raceDistance === 'Ultra' ? 'Full' : raceDistance];
+      const currentPacePerKm = totalSeconds / currentDistance;
+      
+      // Calculate new time for selected distance
+      const newTotalSeconds = currentPacePerKm * distanceValue;
+      
+      // Convert to HH:MM:SS
+      const newHours = Math.floor(newTotalSeconds / 3600);
+      const newMinutes = Math.floor((newTotalSeconds % 3600) / 60);
+      const newSeconds = Math.floor(newTotalSeconds % 60);
+      
+      // Update target time
+      setTargetHours(newHours.toString());
+      setTargetMinutes(newMinutes.toString().padStart(2, '0'));
+      setTargetSeconds(newSeconds.toString().padStart(2, '0'));
+    }
+  };
+
   // 入力モード切り替え
   const toggleInputMode = () => {
     setAveragePaceMode(!averagePaceMode);
@@ -148,7 +199,11 @@ export default function Home() {
       // ターゲットタイムから平均ペースを計算して初期値にセット
       const [hours, minutes, seconds] = targetTime.split(':').map(Number);
       const totalTargetSeconds = hours * 3600 + minutes * 60 + seconds;
-      const paceSecondsPerKm = totalTargetSeconds / 42.195;
+      
+      // Get the current distance value
+      const distanceValue = raceDistance === 'Ultra' ? ultraDistance : RACE_DISTANCES[raceDistance];
+      const paceSecondsPerKm = totalTargetSeconds / distanceValue;
+      
       const paceMinutes = Math.floor(paceSecondsPerKm / 60);
       const paceSeconds = Math.round(paceSecondsPerKm % 60);
       setAveragePaceInput(`${paceMinutes}:${paceSeconds.toString().padStart(2, '0')}`);
@@ -179,9 +234,9 @@ export default function Home() {
       const [hours, minutes, seconds] = targetTime.split(':').map(Number);
       const totalTargetSeconds = hours * 3600 + minutes * 60 + seconds;
       
-      // 正確なペース計算（例：3:30:00 → 4:58/km）
-      // 丸め誤差を避けるため、少し速いペースにする
-      const paceSecondsPerKm = totalTargetSeconds / 42.195;
+      // 正確なペース計算 - 選択した距離に基づいて計算
+      const distanceValue = raceDistance === 'Ultra' ? ultraDistance : RACE_DISTANCES[raceDistance];
+      const paceSecondsPerKm = totalTargetSeconds / distanceValue;
       
       // Convert to MM:SS/km format
       const paceMinutes = Math.floor(paceSecondsPerKm / 60);
@@ -189,19 +244,35 @@ export default function Home() {
       defaultPace = `${paceMinutes}:${paceSeconds.toString().padStart(2, '0')}/km`;
     }
     
-    // Create new segments with calculated pace
+    // Create new segments with calculated pace based on race distance
     const newSegments = segments.map((segment, index) => {
-      const distanceParts = segment.distance.split('-');
-      let distance: number;
+      let segmentDistance: number;
       
-      if (index === segments.length - 1) {
-        // Final segment is special (2.2km)
-        distance = 2.2;
+      // Different segment calculation based on race type
+      if (raceDistance === '5K' || raceDistance === '10K') {
+        segmentDistance = 1; // 1km segments for short races
+      } else if (raceDistance === 'Half' || raceDistance === 'Full') {
+        // For half and full marathon
+        if (index === segments.length - 1) {
+          // Calculate final segment distance (might be partial)
+          const totalDistance = raceDistance === 'Half' ? 21.1 : 42.195;
+          const remainingDistance = totalDistance - (5 * (segments.length - 1));
+          segmentDistance = Math.max(0.1, remainingDistance);
+        } else {
+          segmentDistance = 5; // 5km segments
+        }
       } else {
-        distance = 5; // All other segments are 5km
+        // Ultra marathon
+        if (index === segments.length - 1) {
+          // Calculate final segment distance (might be partial)
+          const remainingDistance = ultraDistance - (10 * (segments.length - 1));
+          segmentDistance = Math.max(0.1, remainingDistance);
+        } else {
+          segmentDistance = 10; // 10km segments
+        }
       }
       
-      const segmentTime = calculateTime(defaultPace, distance);
+      const segmentTime = calculateTime(defaultPace, segmentDistance);
       
       return {
         ...segment,
