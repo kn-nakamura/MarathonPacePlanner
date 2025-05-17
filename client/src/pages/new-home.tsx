@@ -15,7 +15,7 @@ import { ExportChart } from '@/components/pace-chart/export-chart';
 import { TimeSelectDropdowns, PaceSelectDropdowns } from '@/components/ui/select-dropdown';
 import { DEFAULT_SEGMENTS, Segment, PacePlan, RaceDistance, RACE_DISTANCES, generateSegments } from '@/models/pace';
 import { usePaceConverter } from '@/hooks/use-pace-converter';
-import { formatTime, calculateTotalTime, calculateAveragePace } from '@/utils/pace-utils';
+import { formatTime, calculateTotalTime, calculateAveragePace, paceToSeconds, secondsToPace, calculateSegmentTime } from '@/utils/pace-utils';
 import { apiRequest } from '@/lib/queryClient';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -31,6 +31,9 @@ export default function Home() {
   const [raceDistance, setRaceDistance] = useState<RaceDistance>("Full");
   const [ultraDistance, setUltraDistance] = useState<number>(100);
   const [splitStrategy, setSplitStrategy] = useState<number>(0); // 0 = even pace, negative = negative split, positive = positive split
+  
+  // スプリット戦略を適用するために、手動でGenerateボタンを押してもらう
+  // この方式にすることで、即時反映ではなくユーザーの意図的な操作として処理します
   const { calculatePace, calculateTime } = usePaceConverter();
   const { toast } = useToast();
   
@@ -277,10 +280,40 @@ export default function Home() {
       
       const segmentTime = calculateTime(defaultPace, segmentDistance);
       
+      // ここでスプリット戦略を適用
+      let adjustedPace = defaultPace;
+      
+      // スプリット戦略が設定されている場合
+      if (splitStrategy !== 0) {
+        // レース内の相対位置（0から1）
+        const position = index / (segments.length - 1);
+        
+        // スプリット調整量（-1.0から1.0）に変換、中央が0
+        const adjustment = (position - 0.5) * 2;
+        
+        // ペースを分:秒形式から秒に変換
+        const [paceMin, paceSec] = defaultPace.replace('/km','').split(':').map(Number);
+        const paceInSeconds = (paceMin * 60) + paceSec;
+        
+        // スプリット戦略による調整（ネガティブ=後半速く、ポジティブ=前半速く）
+        // splitStrategyは-50から50の値
+        const adjustmentInSeconds = -(adjustment * splitStrategy * paceInSeconds * 0.002);
+        
+        // 調整したペースを秒から分:秒形式に戻す
+        const newPaceInSeconds = Math.max(1, paceInSeconds + adjustmentInSeconds);
+        const newPaceMin = Math.floor(newPaceInSeconds / 60);
+        const newPaceSec = Math.round(newPaceInSeconds % 60);
+        
+        adjustedPace = `${newPaceMin}:${newPaceSec < 10 ? '0' + newPaceSec : newPaceSec}/km`;
+        
+        // セグメント時間も再計算
+        segmentTime = calculateTime(adjustedPace, segmentDistance);
+      }
+      
       return {
         ...segment,
         targetPace: defaultPace,
-        customPace: defaultPace,
+        customPace: adjustedPace,
         segmentTime
       };
     });
