@@ -46,14 +46,47 @@ const fixLeafletIcon = () => {
   });
 };
 
-// Helper component to handle map bounds
+// Helper component to handle map bounds and behavior
 const MapController = ({ points }: { points: LatLngExpression[] }) => {
   const map = useMap();
   
   useEffect(() => {
+    // Disable scroll wheel zoom for better user experience
+    map.scrollWheelZoom.disable();
+    
     if (points.length > 0) {
-      map.fitBounds(points as L.LatLngBoundsExpression);
+      try {
+        // Filter invalid points that might cause errors
+        const validPoints = points.filter(p => 
+          Array.isArray(p) && p.length === 2 && 
+          !isNaN(Number(p[0])) && !isNaN(Number(p[1]))
+        ) as LatLngTuple[];
+        
+        if (validPoints.length > 1) {
+          const bounds = L.latLngBounds(validPoints);
+          map.fitBounds(bounds, { padding: [20, 20] });
+        } else if (validPoints.length === 1) {
+          map.setView(validPoints[0], 13);
+        }
+      } catch (error) {
+        console.error("Error setting map bounds:", error);
+        // Fallback to first point if there's an error
+        if (points[0] && Array.isArray(points[0])) {
+          map.setView(points[0] as LatLngTuple, 12);
+        }
+      }
     }
+    
+    // Add zoom control in bottom right
+    const zoomControl = L.control.zoom({
+      position: 'bottomright'
+    });
+    map.zoomControl?.remove();
+    zoomControl.addTo(map);
+    
+    return () => {
+      zoomControl.remove();
+    };
   }, [map, points]);
   
   return null;
@@ -598,181 +631,183 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
             </Card>
           </div>
           
-          <Tabs defaultValue="elevation" className="mt-4">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="elevation">Elevation Profile</TabsTrigger>
-              <TabsTrigger value="map">Course Map</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="elevation" className="mt-4">
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={elevationData}
-                    margin={{
-                      top: 10,
-                      right: 30,
-                      left: 10,
-                      bottom: 10,
-                    }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="distance" 
-                      label={{ 
-                        value: 'km',
-                        position: 'insideBottomRight',
-                        offset: -5
+          <div className="grid grid-cols-1 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="text-lg font-bold mb-3">Elevation Profile</h3>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={elevationData}
+                      margin={{
+                        top: 10,
+                        right: 30,
+                        left: 10,
+                        bottom: 20,
                       }}
-                      tick={{ fontSize: isMobile ? 10 : 12 }}
-                    />
-                    <YAxis 
-                      domain={yAxisDomain}
-                      label={{ 
-                        value: 'Elevation (m)', 
-                        angle: -90, 
-                        position: 'insideLeft',
-                        style: { 
-                          textAnchor: 'middle',
-                          fontSize: isMobile ? 10 : 12 
-                        }
-                      }}
-                      tick={{ fontSize: isMobile ? 10 : 12 }}
-                    />
-                    <Tooltip 
-                      formatter={(value: number) => [`${value} m`, 'Elevation']}
-                      labelFormatter={(label) => `Distance: ${label} km`}
-                    />
-                    <defs>
-                      <linearGradient id="colorUphill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0.2}/>
-                      </linearGradient>
-                      <linearGradient id="colorDownhill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0.2}/>
-                      </linearGradient>
-                    </defs>
-                    
-                    {/* Draw segment boundary grid lines */}
-                    {segmentAnalysis.map((segment, idx) => (
-                      <ReferenceLine 
-                        key={`grid-${idx}`} 
-                        x={segment.startDist} 
-                        stroke="#888" 
-                        strokeDasharray="3 3" 
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="distance" 
                         label={{ 
-                          value: segment.startDist.toString(), 
-                          position: 'insideBottomLeft',
-                          fill: '#888',
-                          fontSize: 10
-                        }} 
+                          value: 'km',
+                          position: 'insideBottom',
+                          offset: -5
+                        }}
+                        tick={{ fontSize: isMobile ? 10 : 12 }}
                       />
-                    ))}
-                    
-                    {/* Color-coded elevation profile by segment */}
-                    {segmentAnalysis.map((segment, idx) => {
-                      // Create a filtered array of points for this segment
-                      const segmentPoints = elevationData.filter(
-                        point => point.distance >= segment.startDist && point.distance <= segment.endDist
-                      );
+                      <YAxis 
+                        domain={yAxisDomain}
+                        label={{ 
+                          value: 'Elevation (m)', 
+                          angle: -90, 
+                          position: 'insideLeft',
+                          style: { 
+                            textAnchor: 'middle',
+                            fontSize: isMobile ? 10 : 12 
+                          }
+                        }}
+                        tick={{ fontSize: isMobile ? 10 : 12 }}
+                      />
+                      <Tooltip 
+                        formatter={(value: number) => [`${value} m`, 'Elevation']}
+                        labelFormatter={(label) => `Distance: ${label} km`}
+                      />
+                      <defs>
+                        <linearGradient id="colorUphill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
+                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0.2}/>
+                        </linearGradient>
+                        <linearGradient id="colorDownhill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#22c55e" stopOpacity={0.8}/>
+                          <stop offset="95%" stopColor="#22c55e" stopOpacity={0.2}/>
+                        </linearGradient>
+                      </defs>
                       
-                      return segmentPoints.length > 0 ? (
-                        <Area 
-                          key={`segment-${idx}`}
-                          type="monotone" 
-                          dataKey="elevation" 
-                          data={segmentPoints}
-                          stroke={segment.isUphill ? "#ef4444" : "#22c55e"} 
-                          fill={segment.isUphill ? "url(#colorUphill)" : "url(#colorDownhill)"}
-                          fillOpacity={0.8}
+                      {/* Draw segment boundary grid lines */}
+                      {segmentAnalysis.map((segment, idx) => (
+                        <ReferenceLine 
+                          key={`grid-${idx}`} 
+                          x={segment.startDist} 
+                          stroke="#888" 
+                          strokeDasharray="3 3" 
+                          label={{ 
+                            value: Math.round(segment.startDist).toString(), 
+                            position: 'insideBottomLeft',
+                            fill: '#888',
+                            fontSize: 10
+                          }} 
                         />
-                      ) : null;
-                    })}
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </TabsContent>
+                      ))}
+                      
+                      {/* Color-coded elevation profile by segment */}
+                      {segmentAnalysis.map((segment, idx) => {
+                        // Create a filtered array of points for this segment
+                        const segmentPoints = elevationData.filter(
+                          point => point.distance >= segment.startDist && point.distance <= segment.endDist
+                        );
+                        
+                        return segmentPoints.length > 0 ? (
+                          <Area 
+                            key={`segment-${idx}`}
+                            type="monotone" 
+                            dataKey="elevation" 
+                            data={segmentPoints}
+                            stroke={segment.isUphill ? "#ef4444" : "#22c55e"} 
+                            fill={segment.isUphill ? "url(#colorUphill)" : "url(#colorDownhill)"}
+                            fillOpacity={0.8}
+                          />
+                        ) : null;
+                      })}
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
             
-            <TabsContent value="map" className="mt-4">
-              <div className="h-[350px] border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                {mapPoints.length > 0 ? (
-                  <MapContainer 
-                    center={mapPoints[0]} 
-                    zoom={12} 
-                    scrollWheelZoom={false} 
-                    style={{ height: '100%', width: '100%' }}
-                  >
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
-                    
-                    {/* Color-coded route segments */}
-                    {segmentAnalysis.map((segment, index) => {
-                      // Find points that belong to this segment
-                      const segmentStartIdx = elevationData.findIndex(p => p.distance >= segment.startDist);
-                      const segmentEndIdx = elevationData.findIndex(p => p.distance > segment.endDist);
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="text-lg font-bold mb-3">Course Map</h3>
+                <div className="h-[350px]">
+                  {mapPoints.length > 0 ? (
+                    <MapContainer 
+                      center={mapPoints[0]} 
+                      zoom={12} 
+                      scrollWheelZoom={false} 
+                      style={{ height: '100%', width: '100%' }}
+                      zoomControl={false}
+                    >
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
                       
-                      // If end index not found, use the last point
-                      const actualEndIdx = segmentEndIdx === -1 ? elevationData.length - 1 : segmentEndIdx - 1;
-                      
-                      if (segmentStartIdx >= 0 && actualEndIdx >= segmentStartIdx) {
-                        // Extract map points for this segment
-                        const segmentPoints: LatLngTuple[] = [];
-                        for (let i = segmentStartIdx; i <= actualEndIdx && i < mapPoints.length; i++) {
-                          if (mapPoints[i] && mapPoints[i][0] && mapPoints[i][1]) {
-                            segmentPoints.push(mapPoints[i]);
+                      {/* Color-coded route segments */}
+                      {segmentAnalysis.map((segment, index) => {
+                        // Find points that belong to this segment
+                        const segmentStartIdx = elevationData.findIndex(p => p.distance >= segment.startDist);
+                        let segmentEndIdx = elevationData.findIndex(p => p.distance > segment.endDist);
+                        
+                        // If end index not found, use the last point
+                        const actualEndIdx = segmentEndIdx === -1 ? elevationData.length - 1 : segmentEndIdx - 1;
+                        
+                        if (segmentStartIdx >= 0 && actualEndIdx >= segmentStartIdx) {
+                          // Extract map points for this segment
+                          const segmentPoints: LatLngTuple[] = [];
+                          for (let i = segmentStartIdx; i <= actualEndIdx && i < mapPoints.length; i++) {
+                            if (mapPoints[i] && mapPoints[i][0] && mapPoints[i][1]) {
+                              segmentPoints.push(mapPoints[i]);
+                            }
+                          }
+                          
+                          if (segmentPoints.length > 1) {
+                            return (
+                              <React.Fragment key={index}>
+                                <Polyline 
+                                  positions={segmentPoints}
+                                  color={segment.isUphill ? "#ef4444" : "#22c55e"}
+                                  weight={4}
+                                >
+                                  <Popup>
+                                    <div className="text-sm">
+                                      <p className="font-semibold">{segment.segmentName}</p>
+                                      <p>Gradient: {segment.gradient.toFixed(1)}%</p>
+                                      <p>Gain: {segment.elevGain}m / Loss: {segment.elevLoss}m</p>
+                                    </div>
+                                  </Popup>
+                                </Polyline>
+                              </React.Fragment>
+                            );
                           }
                         }
-                        
-                        if (segmentPoints.length > 1) {
-                          return (
-                            <React.Fragment key={index}>
-                              <Polyline 
-                                positions={segmentPoints}
-                                color={segment.isUphill ? "#ef4444" : "#22c55e"}
-                                weight={4}
-                              >
-                                <Popup>
-                                  <div className="text-sm">
-                                    <p className="font-semibold">{segment.segmentName}</p>
-                                    <p>Gradient: {segment.gradient.toFixed(1)}%</p>
-                                    <p>Gain: {segment.elevGain}m / Loss: {segment.elevLoss}m</p>
-                                  </div>
-                                </Popup>
-                              </Polyline>
-                            </React.Fragment>
-                          );
-                        }
-                      }
-                      return null;
-                    })}
-                    
-                    {/* Start marker */}
-                    {mapPoints.length > 0 && (
-                      <Marker position={mapPoints[0]}>
-                        <Popup>Start</Popup>
-                      </Marker>
-                    )}
-                    
-                    {/* Finish marker */}
-                    {mapPoints.length > 0 && (
-                      <Marker position={mapPoints[mapPoints.length - 1]}>
-                        <Popup>Finish</Popup>
-                      </Marker>
-                    )}
-                    
-                    <MapController points={mapPoints} />
-                  </MapContainer>
-                ) : (
-                  <div className="h-full flex items-center justify-center">
-                    <p className="text-gray-500 dark:text-gray-400">Map data not available</p>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
+                        return null;
+                      })}
+                      
+                      {/* Start marker */}
+                      {mapPoints.length > 0 && (
+                        <Marker position={mapPoints[0]}>
+                          <Popup>Start</Popup>
+                        </Marker>
+                      )}
+                      
+                      {/* Finish marker */}
+                      {mapPoints.length > 0 && (
+                        <Marker position={mapPoints[mapPoints.length - 1]}>
+                          <Popup>Finish</Popup>
+                        </Marker>
+                      )}
+                      
+                      <MapController points={mapPoints} />
+                    </MapContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-gray-500 dark:text-gray-400">Map data not available</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
           
           {segmentAnalysis.length > 0 && (
             <div className="mt-4">
