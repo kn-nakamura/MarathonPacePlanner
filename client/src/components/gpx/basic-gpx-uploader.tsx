@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Upload, Info, MapPin } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Slider } from '@/components/ui/slider';
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -73,6 +74,8 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
     gradient: number;
     isUphill: boolean;
   }[]>([]);
+  const [paceAdjustmentFactor, setPaceAdjustmentFactor] = useState<number>(1.0); // 1.0 = 100% of calculated adjustment
+  const [splitStrategy, setSplitStrategy] = useState<number>(0); // 0 = even pace, -50 to +50 range
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
   
@@ -285,6 +288,7 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
     
     // Get original target time and total distance for reference
     const originalTotalTime = calculateTotalTime(segments);
+    const totalDistance = segments[segments.length - 1].distance;
     
     // Calculate raw pace adjustments per segment
     const updatedSegments = segments.map((segment, index) => {
@@ -308,40 +312,57 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
         s.startDist === startDistance && s.endDist === endDistance
       );
       
-      if (!analysis) {
-        console.log(`No terrain analysis for segment "${segment.name}"`);
-        return segment;
-      }
-      
       // Calculate segment distance
       const segmentDistance = endDistance - startDistance;
       
       // Calculate pace adjustment based on terrain
       let paceAdjustment = 0;
       
-      // Pace adjustment logic: slower for uphills, faster for downhills
-      if (analysis.gradient > 4 || (analysis.gradient > 2 && analysis.elevGain > 100)) {
-        paceAdjustment = 30; // +30 sec/km for steep uphills
-      } else if (analysis.gradient > 2 || (analysis.gradient > 1 && analysis.elevGain > 80)) {
-        paceAdjustment = 20; // +20 sec/km for moderate uphills
-      } else if (analysis.gradient > 0.5 || (analysis.gradient > 0 && analysis.elevGain > 50)) {
-        paceAdjustment = 10; // +10 sec/km for gentle uphills
-      } else if (analysis.gradient < -4 || (analysis.gradient < -2 && analysis.elevLoss > 100)) {
-        paceAdjustment = -15; // -15 sec/km for steep downhills
-      } else if (analysis.gradient < -2) {
-        paceAdjustment = -8; // -8 sec/km for moderate downhills
+      // Apply elevation-based pace adjustment if analysis is available
+      if (analysis) {
+        // Pace adjustment logic: slower for uphills, faster for downhills
+        if (analysis.gradient > 4 || (analysis.gradient > 2 && analysis.elevGain > 100)) {
+          paceAdjustment = 30; // +30 sec/km for steep uphills
+        } else if (analysis.gradient > 2 || (analysis.gradient > 1 && analysis.elevGain > 80)) {
+          paceAdjustment = 20; // +20 sec/km for moderate uphills
+        } else if (analysis.gradient > 0.5 || (analysis.gradient > 0 && analysis.elevGain > 50)) {
+          paceAdjustment = 10; // +10 sec/km for gentle uphills
+        } else if (analysis.gradient < -4 || (analysis.gradient < -2 && analysis.elevLoss > 100)) {
+          paceAdjustment = -15; // -15 sec/km for steep downhills
+        } else if (analysis.gradient < -2) {
+          paceAdjustment = -8; // -8 sec/km for moderate downhills
+        }
+        
+        console.log(`Segment "${segment.name}" terrain analysis:`, {
+          'Elevation Gain': analysis.elevGain + "m",
+          'Elevation Loss': analysis.elevLoss + "m", 
+          'Gradient': analysis.gradient + "%",
+          'Base Pace Adjustment': paceAdjustment + " sec/km"
+        });
       }
       
-      console.log(`Segment "${segment.name}" terrain analysis:`, {
-        'Elevation Gain': analysis.elevGain + "m",
-        'Elevation Loss': analysis.elevLoss + "m", 
-        'Gradient': analysis.gradient + "%",
-        'Pace Adjustment': paceAdjustment + " sec/km"
+      // Apply adjustment intensity factor (from slider)
+      paceAdjustment = paceAdjustment * paceAdjustmentFactor;
+      
+      // Apply split strategy adjustment (negative or positive split)
+      // For negative split (progressively faster), splitStrategy will be negative
+      // For positive split (progressively slower), splitStrategy will be positive
+      const segmentPosition = startDistance / parseFloat(totalDistance); // 0 to 1 position in the race
+      const splitAdjustment = splitStrategy * (segmentPosition - 0.5) * 0.6; // Scale by position relative to middle
+      
+      // Apply final pace adjustment (terrain + split strategy)
+      const finalPaceAdjustment = paceAdjustment - splitAdjustment;
+      
+      console.log(`Segment "${segment.name}" pace adjustment calculation:`, {
+        'Terrain Adjustment': paceAdjustment.toFixed(1) + " sec/km",
+        'Split Strategy': splitStrategy,
+        'Split Adjustment': splitAdjustment.toFixed(1) + " sec/km",
+        'Final Adjustment': finalPaceAdjustment.toFixed(1) + " sec/km"
       });
       
       // Apply pace adjustment
       const currentPaceSeconds = paceToSeconds(segment.customPace);
-      const adjustedPaceSeconds = Math.max(0, currentPaceSeconds + paceAdjustment);
+      const adjustedPaceSeconds = Math.max(0, currentPaceSeconds + finalPaceAdjustment);
       const adjustedPace = secondsToPace(adjustedPaceSeconds);
       
       // Calculate new segment time
@@ -415,7 +436,7 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
     }
     
     // Show success message
-    alert("Pace plan updated based on terrain analysis!");
+    alert("Pace plan updated based on terrain analysis and pacing strategy!");
   };
 
   const handleButtonClick = () => {
@@ -444,6 +465,7 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
       gradient: number;
       elevGain: number;
       elevLoss: number;
+      isUphill: boolean;
     }[] = [];
     
     // For each analyzed segment, find the matching points
@@ -456,19 +478,27 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
         .map(p => [p.lat!, p.lon!] as LatLngTuple);
       
       if (segmentPoints.length > 1) {
-        // Determine color based on gradient
-        let color = '#6B7280'; // Default gray for flat
+        // Match color to the segment analysis table (red for uphill, green for downhill)
+        let color = '#6B7280'; // Default gray for flat sections (gradient between -0.5 and 0.5)
         
-        if (gradient > 4) {
-          color = '#EF4444'; // Red for steep uphill
-        } else if (gradient > 2) {
-          color = '#F59E0B'; // Orange for moderate uphill
-        } else if (gradient > 0.5) {
-          color = '#FBBF24'; // Yellow for gentle uphill
-        } else if (gradient < -4) {
-          color = '#10B981'; // Green for steep downhill
-        } else if (gradient < -2) {
-          color = '#34D399'; // Light green for moderate downhill
+        if (isUphill) {
+          // Red colors for uphill sections with intensity based on gradient
+          if (gradient > 4) {
+            color = '#EF4444'; // Deep red for steep uphill
+          } else if (gradient > 2) {
+            color = '#F87171'; // Medium red for moderate uphill
+          } else if (gradient > 0.5) {
+            color = '#FCA5A5'; // Light red for gentle uphill
+          }
+        } else {
+          // Green colors for downhill sections with intensity based on gradient
+          if (gradient < -4) {
+            color = '#10B981'; // Deep green for steep downhill
+          } else if (gradient < -2) {
+            color = '#34D399'; // Medium green for moderate downhill
+          } else if (gradient < -0.5) {
+            color = '#6EE7B7'; // Light green for gentle downhill
+          }
         }
         
         coloredSegments.push({
@@ -477,7 +507,8 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
           segmentName: segment.segmentName,
           gradient,
           elevGain,
-          elevLoss
+          elevLoss,
+          isUphill
         });
       }
     });
@@ -629,6 +660,7 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
                   <MapContainer 
                     center={mapPoints[0]} 
                     zoom={12} 
+                    scrollWheelZoom={false} 
                     style={{ height: '100%', width: '100%' }}
                   >
                     <TileLayer
@@ -719,7 +751,7 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
                               Uphill
                             </Badge>
                           ) : (
-                            <Badge variant="success" className="gap-1 bg-green-500">
+                            <Badge variant="outline" className="gap-1 bg-green-500 text-white">
                               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <polyline points="6 9 12 15 18 9"></polyline>
                               </svg>
@@ -744,16 +776,69 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
             </div>
           )}
           
-          <div className="flex justify-between items-center bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg mt-4">
-            <div className="flex items-start gap-2 flex-1">
+          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg mt-4 space-y-4">
+            <div className="flex items-start gap-2">
               <Info size={20} className="text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
               <div className="text-sm text-blue-700 dark:text-blue-300">
                 Based on terrain data, the pace will be automatically adjusted - slower for uphills, faster for downhills, while maintaining your overall target time.
               </div>
             </div>
-            <Button onClick={applyElevationToPacePlan} className="ml-4 whitespace-nowrap">
-              Apply to Pace Plan
-            </Button>
+            
+            <div className="space-y-4">
+              {/* Pace Adjustment Intensity Slider */}
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Adjustment Intensity</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-500">{Math.round(paceAdjustmentFactor * 100)}%</span>
+                </div>
+                <Slider 
+                  min={0} 
+                  max={2} 
+                  step={0.1}
+                  value={[paceAdjustmentFactor]} 
+                  onValueChange={(vals) => setPaceAdjustmentFactor(vals[0])}
+                  className="w-full"
+                />
+                <div className="flex justify-between mt-1 text-xs text-gray-500">
+                  <span>None</span>
+                  <span>Normal</span>
+                  <span>Strong</span>
+                </div>
+              </div>
+              
+              {/* Split Strategy Slider */}
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Pacing Strategy</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-500">
+                    {splitStrategy < 0 
+                      ? `Negative Split (${Math.abs(splitStrategy)}%)` 
+                      : splitStrategy > 0 
+                        ? `Positive Split (${splitStrategy}%)` 
+                        : 'Even Pace'}
+                  </span>
+                </div>
+                <Slider 
+                  min={-50} 
+                  max={50} 
+                  step={5}
+                  value={[splitStrategy]} 
+                  onValueChange={(vals) => setSplitStrategy(vals[0])}
+                  className="w-full"
+                />
+                <div className="flex justify-between mt-1 text-xs text-gray-500">
+                  <span>Faster Finish</span>
+                  <span>Even</span>
+                  <span>Faster Start</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end mt-4">
+              <Button onClick={applyElevationToPacePlan} className="whitespace-nowrap">
+                Apply to Pace Plan
+              </Button>
+            </div>
           </div>
         </div>
       ) : (
