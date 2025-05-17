@@ -105,6 +105,9 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
   const [totalElevLoss, setTotalElevLoss] = useState(0);
   const [mapPoints, setMapPoints] = useState<LatLngTuple[]>([]);
   const [showElevationColors, setShowElevationColors] = useState<boolean>(true);
+  // マップとグラフの連携に使用する状態変数
+  const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
+  const [hoveredMapPoint, setHoveredMapPoint] = useState<LatLngTuple | null>(null);
   const [segmentAnalysis, setSegmentAnalysis] = useState<{
     segmentName: string;
     startDist: number;
@@ -670,6 +673,23 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
                         left: 10,
                         bottom: 20,
                       }}
+                      onMouseMove={(data) => {
+                        if (data.activeTooltipIndex !== undefined) {
+                          setHoveredPointIndex(data.activeTooltipIndex);
+                          if (elevationData[data.activeTooltipIndex] && 
+                              elevationData[data.activeTooltipIndex].lat && 
+                              elevationData[data.activeTooltipIndex].lon) {
+                            setHoveredMapPoint([
+                              elevationData[data.activeTooltipIndex].lat!,
+                              elevationData[data.activeTooltipIndex].lon!
+                            ]);
+                          }
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        setHoveredPointIndex(null);
+                        setHoveredMapPoint(null);
+                      }}
                     >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis 
@@ -705,6 +725,15 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
                         fill="#93C5FD" 
                         fillOpacity={0.8}
                       />
+                      {/* ホバー位置に参照線を表示 */}
+                      {hoveredPointIndex !== null && (
+                        <ReferenceLine 
+                          x={elevationData[hoveredPointIndex]?.distance} 
+                          stroke="red" 
+                          strokeWidth={2} 
+                          strokeDasharray="3 3" 
+                        />
+                      )}
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -725,6 +754,32 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
                     />
                   </div>
                 </div>
+                
+                {/* 標高カラーの凡例 */}
+                {showElevationColors && (
+                  <div className="flex flex-wrap gap-2 mb-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-md">
+                    <div className="flex items-center text-xs">
+                      <div className="w-4 h-4 mr-1 rounded-sm" style={{ backgroundColor: "#FF4136" }}></div>
+                      <span>急な上り</span>
+                    </div>
+                    <div className="flex items-center text-xs">
+                      <div className="w-4 h-4 mr-1 rounded-sm" style={{ backgroundColor: "#FF851B" }}></div>
+                      <span>緩やかな上り</span>
+                    </div>
+                    <div className="flex items-center text-xs">
+                      <div className="w-4 h-4 mr-1 rounded-sm" style={{ backgroundColor: "#2ECC40" }}></div>
+                      <span>ほぼ平坦</span>
+                    </div>
+                    <div className="flex items-center text-xs">
+                      <div className="w-4 h-4 mr-1 rounded-sm" style={{ backgroundColor: "#0074D9" }}></div>
+                      <span>緩やかな下り</span>
+                    </div>
+                    <div className="flex items-center text-xs">
+                      <div className="w-4 h-4 mr-1 rounded-sm" style={{ backgroundColor: "#B10DC9" }}></div>
+                      <span>急な下り</span>
+                    </div>
+                  </div>
+                )}
                 <div className="h-[350px]">
                   {mapPoints.length > 0 ? (
                     <MapContainer 
