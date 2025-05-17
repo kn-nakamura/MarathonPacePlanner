@@ -56,17 +56,35 @@ export default function Home() {
     }
   }, [toast]);
   
-  // プルダウン式の時間入力変更ハンドラー
+  // プルダウン式の時間入力変更ハンドラー - 平均ペースも自動更新
   const handleHoursChange = (hours: string) => {
     setTargetHours(hours);
+    updateAveragePaceFromTime(hours, targetMinutes, targetSeconds);
   };
   
   const handleMinutesChange = (minutes: string) => {
     setTargetMinutes(minutes);
+    updateAveragePaceFromTime(targetHours, minutes, targetSeconds);
   };
   
   const handleSecondsChange = (seconds: string) => {
     setTargetSeconds(seconds);
+    updateAveragePaceFromTime(targetHours, targetMinutes, seconds);
+  };
+  
+  // 目標タイムから平均ペースを更新する関数
+  const updateAveragePaceFromTime = (hours: string, minutes: string, seconds: string) => {
+    const h = parseInt(hours);
+    const m = parseInt(minutes);
+    const s = parseInt(seconds);
+    
+    if (!isNaN(h) && !isNaN(m) && !isNaN(s)) {
+      const totalSeconds = h * 3600 + m * 60 + s;
+      const paceSecondsPerKm = totalSeconds / 42.195;
+      const paceMinutes = Math.floor(paceSecondsPerKm / 60);
+      const paceSeconds = Math.floor(paceSecondsPerKm % 60);
+      setAveragePaceInput(`${paceMinutes}:${paceSeconds.toString().padStart(2, '0')}`);
+    }
   };
   
   // Format the target time
@@ -80,12 +98,35 @@ export default function Home() {
   const [averagePaceInput, setAveragePaceInput] = useState<string>("");
   const [averagePaceMode, setAveragePaceMode] = useState<boolean>(false);
   
-  // 平均ペース入力変更ハンドラー
+  // 平均ペース入力変更ハンドラー - 目標タイムも自動更新
   const handleAveragePaceChange = (e: ChangeEvent<HTMLInputElement>) => {
     let input = e.target.value;
     // MM:SS形式のみを許可
     if (/^(\d{0,2})(:|$)(\d{0,2})$/.test(input)) {
       setAveragePaceInput(input);
+      
+      // 平均ペースから目標タイムを更新
+      updateTargetTimeFromPace(input);
+    }
+  };
+  
+  // 平均ペースから目標タイムを更新する関数
+  const updateTargetTimeFromPace = (paceInput: string) => {
+    if (paceInput.includes(':')) {
+      const [min, sec] = paceInput.split(':').map(Number);
+      
+      if (!isNaN(min) && !isNaN(sec)) {
+        const paceSeconds = min * 60 + sec;
+        const totalSeconds = paceSeconds * 42.195;
+        
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = Math.floor(totalSeconds % 60);
+        
+        setTargetHours(hours.toString());
+        setTargetMinutes(minutes.toString().padStart(2, '0'));
+        setTargetSeconds(seconds.toString().padStart(2, '0'));
+      }
     }
   };
   
