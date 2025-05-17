@@ -432,8 +432,28 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
       // Apply gradient factor (from slider)
       paceAdjustment = paceAdjustment * gradientFactor;
       
-      // Apply final pace adjustment (terrain only, splitStrategy is handled in the UI)
-      const finalPaceAdjustment = paceAdjustment;
+      // Apply pacing strategy factor - calculate segment position based adjustment
+      let pacingStrategyAdjustment = 0;
+      if (pacingStrategyFactor !== 0) {
+        // セグメントの位置を考慮（コース全体の何%地点か）
+        const totalDistance = parseFloat(segments[segments.length - 1].distance);
+        const segmentMidpoint = (startDistance + endDistance) / 2;
+        const positionPercentage = segmentMidpoint / totalDistance; // 0.0 to 1.0
+        
+        // -1.0 (faster start) to 1.0 (faster finish)の範囲で調整（負の値は前半が速い）
+        // positionPercentageが0に近いほど前半、1に近いほど後半
+        // pacingStrategyFactorが負なら前半速く(スタート重視)、正なら後半速く(フィニッシュ重視)
+        if (pacingStrategyFactor < 0) {
+          // Faster Start - 前半速く、後半遅く
+          pacingStrategyAdjustment = -pacingStrategyFactor * 30 * (1 - positionPercentage * 2); // 前半は負の値（速く）、後半は正の値（遅く）
+        } else {
+          // Faster Finish - 前半遅く、後半速く
+          pacingStrategyAdjustment = pacingStrategyFactor * 30 * (positionPercentage * 2 - 1); // 前半は正の値（遅く）、後半は負の値（速く）
+        }
+      }
+      
+      // Combine both adjustment types
+      const finalPaceAdjustment = paceAdjustment + pacingStrategyAdjustment;
       
       // Apply pace adjustment - always start from target pace, not current custom pace
       const targetPaceSeconds = paceToSeconds(segment.targetPace);
