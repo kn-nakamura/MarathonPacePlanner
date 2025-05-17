@@ -112,8 +112,7 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
     gradient: number;
     isUphill: boolean;
   }[]>([]);
-  // 親コンポーネントから渡される値を使用するため内部のステートは不要
-  // gradientFactorとそのsetter関数はpropsから取得
+  // 内部のgradientFactor状態は削除し、親から渡される値を使用
   const [pacingStrategyFactor, setPacingStrategyFactor] = useState<number>(0.0); // 0.0 = no pacing strategy adjustment
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
@@ -327,11 +326,11 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
   };
   
   // Apply elevation-based pace adjustments - リアルタイムで適用される
+  // この関数は直接呼び出されなくなりました - データは親コンポーネントに渡され、表示用セグメントの計算に使用されます
   const applyElevationToPacePlan = () => {
-    if (elevationData.length === 0 || segments.length === 0) return;
-    
-    // TerrainAdjustmentスライダーはPacing Strategyスライダーと一緒に機能するように設計されている
-    // スライダーは独立して機能し、常に現在のペースを基準に調整する（ミュートバーション問題を回避）
+    // この関数の実装は不要になりました - 新しい設計では親コンポーネントが処理します
+    console.log("Elevation data was updated and shared with parent component");
+    // TerrainAdjustmentとPacing Strategyはnew-home.tsxのcalculateDisplaySegmentsで処理されます
     
     // Get original target time and total distance for reference
     const originalTotalTime = calculateTotalTime(segments);
@@ -884,13 +883,14 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
                   step={0.1}
                   value={[gradientFactor]} 
                   onValueChange={(vals) => {
-                    // スライダー値を更新した後、即座にペースプランに適用
+                    // スライダー値を更新した後、親コンポーネントに通知
                     const newValue = vals[0];
                     console.log(`Gradient factor changed to ${newValue}`);
                     
-                    setGradientFactor(newValue);
-                    // 直接ここで関数を呼び出す
-                    applyElevationToPacePlan();
+                    // 親コンポーネントのコールバックが存在する場合は呼び出す
+                    if (onGradientFactorChange) {
+                      onGradientFactorChange(newValue);
+                    }
                   }}
                   className="w-full"
                 />

@@ -609,6 +609,8 @@ export default function Home() {
               segments={baseSegments}
               onUpdateSegments={setBaseSegments}
               onSegmentAnalysisReady={setSegmentAnalysis}
+              gradientFactor={gradientFactor}
+              onGradientFactorChange={setGradientFactor}
             />
           </CardContent>
         </Card>
