@@ -81,15 +81,11 @@ const MapController = ({ points }: { points: LatLngExpression[] }) => {
       }
     }
     
-    // Add zoom control in bottom right
-    const zoomControl = L.control.zoom({
-      position: 'bottomright'
-    });
-    map.zoomControl?.remove();
-    zoomControl.addTo(map);
+    // We don't need to add zoom control here since MapContainer has its own zoom control
+    // Just ensure map is properly centered and bounded
     
     return () => {
-      zoomControl.remove();
+      // Clean up if needed
     };
   }, [map, points]);
   
