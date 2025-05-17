@@ -85,6 +85,23 @@ export function HorizontalPaceChart({
     
     return `rgb(${r}, ${g}, ${b})`;
   };
+  
+  // 最速のペースを見つける
+  const getFastestPaceIndex = (data: ChartData[]): number => {
+    if (data.length === 0) return -1;
+    
+    let fastestIndex = 0;
+    let fastestPace = data[0].pace;
+    
+    data.forEach((item, index) => {
+      if (item.pace < fastestPace) {
+        fastestPace = item.pace;
+        fastestIndex = index;
+      }
+    });
+    
+    return fastestIndex;
+  };
 
   // Function to download chart as PNG
   const handleDownloadImage = async () => {
@@ -139,7 +156,8 @@ export function HorizontalPaceChart({
     const step = Math.ceil(paceRange / 5); // 5分割
     
     const pacePoints = [];
-    for (let i = minPace; i <= maxPace; i += step) {
+    // 速いペース（低い値）から遅いペース（高い値）の順に並べる
+    for (let i = maxPace; i >= minPace; i -= step) {
       pacePoints.push(i);
     }
     
@@ -199,7 +217,7 @@ export function HorizontalPaceChart({
             layout="vertical"
             margin={{
               top: 5,
-              right: 5,
+              right: 35, // ラベルのスペース確保
               left: 5,
               bottom: 5,
             }}
@@ -208,7 +226,7 @@ export function HorizontalPaceChart({
             <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
             <XAxis 
               type="number"
-              domain={[minPace, maxPace]}
+              domain={[maxPace, minPace]} // 逆順（速いペース＝小さい値が右側に）
               hide={true} // X軸は非表示（上部のカスタムラベルで代用）
             />
             <YAxis 
@@ -237,7 +255,7 @@ export function HorizontalPaceChart({
                 const pace = chartData[index].paceText;
                 return (
                   <text 
-                    x={x + width + 5} 
+                    x={x + 5} 
                     y={y + height/2} 
                     fill="#666"
                     textAnchor="start" 
@@ -257,14 +275,30 @@ export function HorizontalPaceChart({
           </BarChart>
         </ResponsiveContainer>
         
-        {/* 最後のセグメントにランナーアイコンを表示 */}
+        {/* 最速のセグメントに雷マークを表示 */}
         {chartData.length > 0 && (
           <div className="flex justify-end mr-16 -mt-8 relative z-10">
-            <div className="bg-white dark:bg-gray-800 rounded-full p-1 border-2 border-orange-500">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M13 10V3L4 14h7v7l9-11h-7z" fill="#ff8833" stroke="#000" strokeWidth="1"/>
-              </svg>
-            </div>
+            {(() => {
+              const fastestIndex = getFastestPaceIndex(chartData);
+              if (fastestIndex === -1) return null;
+              
+              // セグメント数からアイコンの位置を計算
+              const position = (fastestIndex / (chartData.length - 1)) * 100;
+              
+              return (
+                <div 
+                  className="absolute bg-white dark:bg-gray-800 rounded-full p-1 border-2 border-orange-500"
+                  style={{ 
+                    top: `${position}%`, 
+                    right: isMobile ? '10px' : '20px' 
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M13 10V3L4 14h7v7l9-11h-7z" fill="#ff8833" stroke="#000" strokeWidth="1"/>
+                  </svg>
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>
