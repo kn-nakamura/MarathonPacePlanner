@@ -503,6 +503,21 @@ export default function Home() {
             </CardContent>
           </Card>
           
+          {/* GPX Elevation Analysis */}
+          <Card>
+            <CardHeader>
+              <CardTitle>地形分析とペース最適化</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <GPXAnalyzer
+                segments={segments}
+                raceDistance={raceDistance}
+                ultraDistance={ultraDistance}
+                onUpdateSegments={setSegments}
+              />
+            </CardContent>
+          </Card>
+          
           {/* Simple Save Button */}
           <Card>
             <CardContent className="pt-6">
