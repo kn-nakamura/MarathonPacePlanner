@@ -12,25 +12,23 @@ interface TimeSelectDropdownsProps {
   hours: string;
   minutes: string;
   seconds: string;
-  onHoursChange: (value: string) => void;
-  onMinutesChange: (value: string) => void;
-  onSecondsChange: (value: string) => void;
-  disableSeconds?: boolean;
+  onChangeHours: (value: string) => void;
+  onChangeMinutes: (value: string) => void;
+  onChangeSeconds: (value: string) => void;
 }
 
 export function TimeSelectDropdowns({
   hours,
   minutes,
   seconds,
-  onHoursChange,
-  onMinutesChange,
-  onSecondsChange,
-  disableSeconds = false
+  onChangeHours,
+  onChangeMinutes,
+  onChangeSeconds,
 }: TimeSelectDropdownsProps) {
   return (
     <div className="flex items-center gap-1 sm:gap-2 justify-center w-full max-w-xs sm:max-w-md mx-auto">
       <div className="w-1/3">
-        <Select value={hours} onValueChange={onHoursChange}>
+        <Select value={hours} onValueChange={onChangeHours}>
           <SelectTrigger className="w-full text-center text-xs sm:text-sm">
             <SelectValue placeholder="Hr" />
           </SelectTrigger>
@@ -43,35 +41,31 @@ export function TimeSelectDropdowns({
           </SelectContent>
         </Select>
       </div>
+
       <div className="w-1/3">
-        <Select value={minutes} onValueChange={onMinutesChange}>
+        <Select value={minutes} onValueChange={onChangeMinutes}>
           <SelectTrigger className="w-full text-center text-xs sm:text-sm">
             <SelectValue placeholder="Min" />
           </SelectTrigger>
           <SelectContent>
             {Array.from({ length: 60 }, (_, i) => (
-              <SelectItem
-                key={`min-${i}`}
-                value={String(i).padStart(2, '0')}
-              >
-                {String(i).padStart(2, '0')}
+              <SelectItem key={`min-${i}`} value={String(i).padStart(2, "0")}>
+                {String(i).padStart(2, "0")}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
+
       <div className="w-1/3">
-        <Select value={seconds} onValueChange={onSecondsChange} disabled={disableSeconds}>
+        <Select value={seconds} onValueChange={onChangeSeconds}>
           <SelectTrigger className="w-full text-center text-xs sm:text-sm">
             <SelectValue placeholder="Sec" />
           </SelectTrigger>
           <SelectContent>
             {Array.from({ length: 60 }, (_, i) => (
-              <SelectItem
-                key={`sec-${i}`}
-                value={String(i).padStart(2, '0')}
-              >
-                {String(i).padStart(2, '0')}
+              <SelectItem key={`sec-${i}`} value={String(i).padStart(2, "0")}>
+                {String(i).padStart(2, "0")}
               </SelectItem>
             ))}
           </SelectContent>
@@ -81,54 +75,99 @@ export function TimeSelectDropdowns({
   );
 }
 
-// Pace Select Dropdowns Component for MM:SS format
-interface PaceDropdownProps {
+// Pace Select Dropdowns Component
+interface PaceSelectDropdownsProps {
   minutes: string;
   seconds: string;
   onChangeMinutes: (value: string) => void;
   onChangeSeconds: (value: string) => void;
 }
 
-export function PaceDropdown({
+export function PaceSelectDropdowns({
   minutes,
   seconds,
   onChangeMinutes,
   onChangeSeconds,
-}: PaceDropdownProps) {
+}: PaceSelectDropdownsProps) {
   return (
-    <div className="flex items-center gap-2 justify-center">
-      <div className="w-24">
+    <div className="flex items-center gap-1 sm:gap-2 justify-center w-full max-w-xs sm:max-w-md mx-auto">
+      <div className="w-1/2">
         <Select value={minutes} onValueChange={onChangeMinutes}>
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full text-center text-xs sm:text-sm">
             <SelectValue placeholder="Min" />
           </SelectTrigger>
           <SelectContent>
-            {Array.from({ length: 16 }, (_, i) => (
-              <SelectItem key={`paceMin-${i}`} value={String(i)}>
-                {i}
+            {Array.from({ length: 12 }, (_, i) => (
+              <SelectItem key={`pace-min-${i}`} value={String(i + 1)}>
+                {i + 1}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
-      <span className="text-lg">:</span>
-      <div className="w-24">
+
+      <div className="w-1/2">
         <Select value={seconds} onValueChange={onChangeSeconds}>
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full text-center text-xs sm:text-sm">
             <SelectValue placeholder="Sec" />
           </SelectTrigger>
           <SelectContent>
             {Array.from({ length: 60 }, (_, i) => (
-              <SelectItem
-                key={`paceSec-${i}`}
-                value={String(i).padStart(2, '0')}
-              >
-                {String(i).padStart(2, '0')}
+              <SelectItem key={`pace-sec-${i}`} value={String(i).padStart(2, "0")}>
+                {String(i).padStart(2, "0")}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
+    </div>
+  );
+}
+
+// Pace Dropdown for Segment Editor
+interface PaceDropdownProps {
+  pace: string;
+  onPaceChange: (newPace: string) => void;
+}
+
+export function PaceDropdown({ pace, onPaceChange }: PaceDropdownProps) {
+  const [min, sec] = pace.replace('/km', '').split(':');
+  
+  const handleMinChange = (newMin: string) => {
+    onPaceChange(`${newMin}:${sec}/km`);
+  };
+  
+  const handleSecChange = (newSec: string) => {
+    onPaceChange(`${min}:${newSec}/km`);
+  };
+  
+  return (
+    <div className="flex space-x-1 items-center">
+      <Select value={min} onValueChange={handleMinChange}>
+        <SelectTrigger className="h-7 sm:h-8 w-10 sm:w-12 px-1 text-xs sm:text-sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {Array.from({ length: 12 }, (_, i) => (
+            <SelectItem key={`seg-min-${i}`} value={String(i + 1)}>
+              {i + 1}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <span className="text-xs sm:text-sm">:</span>
+      <Select value={sec} onValueChange={handleSecChange}>
+        <SelectTrigger className="h-7 sm:h-8 w-12 sm:w-14 px-1 text-xs sm:text-sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {Array.from({ length: 60 }, (_, i) => (
+            <SelectItem key={`seg-sec-${i}`} value={String(i).padStart(2, '0')}>
+              {String(i).padStart(2, '0')}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
