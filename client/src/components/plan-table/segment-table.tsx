@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Clock } from "lucide-react";
 import { Segment } from "@/models/pace";
-import { calculateCumulativeTimes } from "@/utils/pace-utils";
+import { calculateCumulativeTimes, calculateSegmentTime } from "@/utils/pace-utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { PaceDropdown } from "@/components/ui/select-dropdown";
 import { Slider } from "@/components/ui/slider";
@@ -106,6 +106,7 @@ export function SegmentTable({ segments, onUpdateSegment, onUpdateRemainingSegme
                   />
                 </TableCell>
                 <TableCell className={isMobile ? "py-1 px-1 sm:py-1.5 sm:px-2" : ""}>
+                  {/* 区間タイム - segmentTimeをそのまま表示 */}
                   {segment.segmentTime}
                 </TableCell>
                 <TableCell className={`font-semibold text-primary-600 dark:text-primary-400 ${isMobile ? "py-1 px-1 sm:py-1.5 sm:px-2" : ""}`}>

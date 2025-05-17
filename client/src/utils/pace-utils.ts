@@ -49,15 +49,20 @@ export function formatPace(minutes: number, seconds: number): string {
 
 /**
  * Calculates the segment time based on pace and distance
+ * MM:SS or HH:MM:SS形式で区間時間を返す
  */
 export function calculateSegmentTime(pace: string, distanceKm: number): string {
+  // ペースを秒数に変換
   const paceSeconds = paceToSeconds(pace);
+  // 距離をかけて総秒数を計算
   const totalSeconds = paceSeconds * distanceKm;
   
+  // 時間、分、秒に変換
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = Math.round(totalSeconds % 60);
   
+  // 時間がある場合はHH:MM:SS形式、ない場合はMM:SS形式
   if (hours > 0) {
     return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }
@@ -100,18 +105,17 @@ export function calculateCumulativeTimes(segments: Segment[]): string[] {
   const cumulativeTimes: string[] = [];
   
   segments.forEach(segment => {
-    // Handle MM:SS or HH:MM:SS formats
-    const timeParts = segment.segmentTime.split(':').map(Number);
-    if (timeParts.length === 3) {
-      // HH:MM:SS format
-      const [hours, minutes, seconds] = timeParts;
-      cumulativeSeconds += hours * 3600 + minutes * 60 + seconds;
-    } else if (timeParts.length === 2) {
-      // MM:SS format
-      const [minutes, seconds] = timeParts;
-      cumulativeSeconds += minutes * 60 + seconds;
-    }
+    // ペースと距離から区間タイムを計算して累積に加算
+    const distance = parseFloat(segment.distance.split(' ')[0]);
+    const paceStr = segment.customPace.replace('/km', '');
+    const [paceMin, paceSec] = paceStr.split(':').map(Number);
+    const paceInSeconds = (paceMin * 60) + paceSec;
+    const segmentSeconds = paceInSeconds * distance;
     
+    // 累積秒数に加算
+    cumulativeSeconds += segmentSeconds;
+    
+    // フォーマットして結果に追加
     const hours = Math.floor(cumulativeSeconds / 3600);
     const mins = Math.floor((cumulativeSeconds % 3600) / 60);
     const secs = Math.round(cumulativeSeconds % 60);
