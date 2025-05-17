@@ -97,9 +97,9 @@ export function PaceSelectDropdowns({
             <SelectValue placeholder="Min" />
           </SelectTrigger>
           <SelectContent>
-            {Array.from({ length: 10 }, (_, i) => (
-              <SelectItem key={`pace-min-${i}`} value={String(i + 3)}>
-                {i + 3}
+            {Array.from({ length: 12 }, (_, i) => (
+              <SelectItem key={`pace-min-${i}`} value={String(i + 1)}>
+                {i + 1}
               </SelectItem>
             ))}
           </SelectContent>
@@ -148,9 +148,9 @@ export function PaceDropdown({ pace, onPaceChange }: PaceDropdownProps) {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {Array.from({ length: 10 }, (_, i) => (
-            <SelectItem key={`seg-min-${i}`} value={String(i + 3)}>
-              {i + 3}
+          {Array.from({ length: 12 }, (_, i) => (
+            <SelectItem key={`seg-min-${i}`} value={String(i + 1)}>
+              {i + 1}
             </SelectItem>
           ))}
         </SelectContent>
