@@ -98,19 +98,8 @@ export function HorizontalPaceChart({
 
   // ペースに応じたグラデーションカラーを生成
   const getColorForPace = (pace: number, minPace: number, maxPace: number): string => {
-    // 逆にして、遅いペース（大きい値）ほど濃い色にする
-    const range = maxPace - minPace;
-    if (range === 0) return '#ff8833'; // デフォルト
-    
-    // グラデーションを逆転（遅いペースほど濃い色に）
-    const normalizedValue = (pace - minPace) / range;
-    
-    // オレンジ系のグラデーション（明るい→濃い）
-    const r = Math.floor(255 * (0.8 + normalizedValue * 0.2)); // 255 -> 204
-    const g = Math.floor(136 * (0.8 + normalizedValue * 0.2)); // 136 -> 109
-    const b = Math.floor(51 * (1 + normalizedValue * 0.5));    // 51 -> 77
-    
-    return `rgb(${r}, ${g}, ${b})`;
+    // ペースに関わらず常にグレーを返す
+    return '#e0e0e0'; // グレー
   };
   
   // 最速のペースを見つける

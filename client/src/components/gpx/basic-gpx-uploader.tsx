@@ -814,9 +814,9 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
                   step={0.1}
                   value={[paceAdjustmentFactor]} 
                   onValueChange={(vals) => {
+                    // スライダー値を更新した後、即座にペースプランに適用
                     setPaceAdjustmentFactor(vals[0]);
-                    // スライダーを動かすとリアルタイムでペースが更新される
-                    setTimeout(() => applyElevationToPacePlan(), 10);
+                    applyElevationToPacePlan();
                   }}
                   className="w-full"
                 />
