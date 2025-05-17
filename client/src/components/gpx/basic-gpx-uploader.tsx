@@ -840,7 +840,7 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
                       zoom={12} 
                       scrollWheelZoom={false} 
                       style={{ height: '100%', width: '100%' }}
-                      zoomControl={true}
+                      zoomControl={false}
                     >
                       <TileLayer
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
