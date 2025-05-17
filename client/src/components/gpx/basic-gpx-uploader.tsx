@@ -320,50 +320,8 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
   const applyElevationToPacePlan = () => {
     if (elevationData.length === 0 || segments.length === 0) return;
     
-    // 外部のPacing Strategyスライダーの値を取得（UI側から提供される）
-    // Segment EditorのPacing Strategyスライダーとの重複を避けるために内部のpacingStrategyFactorは使用しない
-    
-    // 両方のファクターが0の場合は、すべてのセグメントを元のターゲットペースに戻す
-    if (gradientFactor === 0) {
-      const resetSegments = segments.map(segment => {
-        // 元のターゲットペースを使用
-        const distanceMatch = segment.name.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
-        const cleanName = segment.name.replace('km', '');
-        const fallbackMatch = cleanName.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
-        const match = distanceMatch || fallbackMatch;
-        
-        if (!match) return segment;
-        
-        const startDistance = parseFloat(match[1]);
-        const endDistance = parseFloat(match[2]);
-        const segmentDistance = endDistance - startDistance;
-        
-        // ターゲットペースから区間時間を計算
-        const targetTime = segment.targetPace.replace('/km', '');
-        const [min, sec] = targetTime.split(':').map(Number);
-        const totalSeconds = min * 60 + sec;
-        const segTimeSeconds = totalSeconds * segmentDistance;
-        let segTimeMin = Math.floor(segTimeSeconds / 60);
-        let segTimeSec = Math.round(segTimeSeconds % 60);
-        
-        // 秒数が60になった場合は分に繰り上げる
-        if (segTimeSec === 60) {
-          segTimeMin += 1;
-          segTimeSec = 0;
-        }
-        
-        const segmentTimeFormatted = `${segTimeMin}:${segTimeSec < 10 ? '0' + segTimeSec : segTimeSec}`;
-        
-        return {
-          ...segment,
-          customPace: segment.targetPace,
-          segmentTime: segmentTimeFormatted
-        };
-      });
-      
-      onUpdateSegments(resetSegments);
-      return;
-    }
+    // TerrainAdjustmentスライダーはPacing Strategyスライダーと一緒に機能するように設計されている
+    // スライダーは独立して機能し、常に現在のペースを基準に調整する（ミュートバーション問題を回避）
     
     // Get original target time and total distance for reference
     const originalTotalTime = calculateTotalTime(segments);
@@ -938,58 +896,7 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
               
               {/* Remove the duplicated Pacing Strategy slider since it's already available in the UI */}
               
-              {/* Reset Button */}
-              <div className="text-center">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    setGradientFactor(0);
-                    setPacingStrategyFactor(0);
-                    
-                    // 完全リセット処理
-                    const resetSegments = segments.map(segment => {
-                      // 元のターゲットペースを使用
-                      const distanceMatch = segment.name.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
-                      const cleanName = segment.name.replace('km', '');
-                      const fallbackMatch = cleanName.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
-                      const match = distanceMatch || fallbackMatch;
-                      
-                      if (!match) return segment;
-                      
-                      const startDistance = parseFloat(match[1]);
-                      const endDistance = parseFloat(match[2]);
-                      const segmentDistance = endDistance - startDistance;
-                      
-                      // ターゲットペースから区間時間を計算
-                      const targetTime = segment.targetPace.replace('/km', '');
-                      const [min, sec] = targetTime.split(':').map(Number);
-                      const totalSeconds = min * 60 + sec;
-                      const segTimeSeconds = totalSeconds * segmentDistance;
-                      let segTimeMin = Math.floor(segTimeSeconds / 60);
-                      let segTimeSec = Math.round(segTimeSeconds % 60);
-                      
-                      // 秒数が60になった場合は分に繰り上げる
-                      if (segTimeSec === 60) {
-                        segTimeMin += 1;
-                        segTimeSec = 0;
-                      }
-                      
-                      const segmentTimeFormatted = `${segTimeMin}:${segTimeSec < 10 ? '0' + segTimeSec : segTimeSec}`;
-                      
-                      return {
-                        ...segment,
-                        customPace: segment.targetPace,
-                        segmentTime: segmentTimeFormatted
-                      };
-                    });
-                    
-                    onUpdateSegments(resetSegments);
-                  }}
-                >
-                  Reset to Target Pace
-                </Button>
-              </div>
+              {/* Resetボタンはユーザーからの要望により削除しました */}
             </div>
             
             {/* ボタン削除 - スライダーでリアルタイム適用 */}
