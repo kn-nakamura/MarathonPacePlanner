@@ -116,22 +116,28 @@ export function PaceChart({ segments, targetTime, exportMode = false, height = 3
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // Y軸の最小・最大値を計算（広い範囲をカバーするよう調整）
+  // Y軸の最小・最大値を計算（設定したペースに合わせて適切なスケールに）
   const allPaceValues = chartData.flatMap(d => [d.pace, d.targetPace]);
-  // デフォルト値を設定（データがない場合や異常値の場合のフォールバック）
+  
+  // データに基づいて最小値と最大値を計算（データがない場合はデフォルト値を使用）
   const minValue = allPaceValues.length > 0 ? Math.min(...allPaceValues) : 240; // 4:00/km
   const maxValue = allPaceValues.length > 0 ? Math.max(...allPaceValues) : 360; // 6:00/km
   
-  // 目標タイムが2時間の場合でも対応できるよう範囲を広げる
-  const minPaceValue = Math.max(0, Math.min(minValue, 180) - 30); // 2:30/km (3:00/km以上の場合)
-  const maxPaceValue = Math.max(maxValue, 360) + 30; // 最大値+余裕
+  // 適切な余白を持たせつつスケールを最適化
+  const padding = 15; // 15秒の余白
+  const minPaceValue = Math.max(0, minValue - padding);
+  const maxPaceValue = maxValue + padding;
   
-  // 10秒刻みの目盛りを生成する関数
-  const generatePaceTicks = (min: number, max: number, step: number = 10) => {
+  // Y軸の目盛りを生成する関数（30秒単位）
+  const generatePaceTicks = (min: number, max: number, step: number = 30) => {
     const ticks: number[] = [];
-    for (let i = Math.floor(min / step) * step; i <= Math.ceil(max / step) * step; i += step) {
-      // 30秒区切りの分だけ表示する (例: 4:00, 4:30, 5:00...)
-      if (i % 30 === 0) {
+    // 1分単位に切り下げた値から開始
+    const startMin = Math.floor(min / 60) * 60;
+    
+    // 最小値から最大値までステップごとに目盛りを生成
+    for (let i = startMin; i <= max; i += step) {
+      // 範囲内の目盛りのみ追加
+      if (i >= min) {
         ticks.push(i);
       }
     }
@@ -185,14 +191,14 @@ export function PaceChart({ segments, targetTime, exportMode = false, height = 3
         ref={chartRef} 
         className={!exportMode ? "bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700" : ""}
       >
-        <ResponsiveContainer width="100%" height={exportMode ? 500 : height + 100}>
+        <ResponsiveContainer width="100%" height={exportMode ? 500 : height}>
           <LineChart
             data={chartData}
             margin={{
-              top: 20,
-              right: 30,
-              left: 20,
-              bottom: 35,
+              top: 10,
+              right: 10,
+              left: 10,
+              bottom: 30,
             }}
           >
             <CartesianGrid strokeDasharray="3 3" />
@@ -229,7 +235,8 @@ export function PaceChart({ segments, targetTime, exportMode = false, height = 3
               domain={[minPaceValue, maxPaceValue]}
               // Invert the axis so lower pace (faster) is higher on the chart
               reversed
-              ticks={[4*60, 4*60+30, 5*60, 5*60+30, 6*60]} // 30秒単位の目盛り
+              // オートスケールに合わせた目盛りを生成
+              ticks={generatePaceTicks(minPaceValue, maxPaceValue, 30)}
               tick={{ fontSize: isMobile ? 8 : 10 }}
               tickFormatter={(value) => {
                 const min = Math.floor(value / 60);

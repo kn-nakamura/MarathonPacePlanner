@@ -304,7 +304,7 @@ export default function Home() {
           {/* Generator Card */}
           <Card>
             <CardHeader>
-              <CardTitle>ペースプラン生成</CardTitle>
+              <CardTitle>Create Pace Plan</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center mb-6 space-x-2">
@@ -314,7 +314,7 @@ export default function Home() {
                   onCheckedChange={toggleInputMode}
                 />
                 <Label htmlFor="input-mode">
-                  {averagePaceMode ? "平均ペースから作成" : "目標タイムから作成"}
+                  {averagePaceMode ? "Create from Average Pace" : "Create from Target Time"}
                 </Label>
               </div>
             
