@@ -1,8 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
-import { Upload, Info } from 'lucide-react';
+import { Upload, Info, MapPin } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -12,9 +14,12 @@ import {
   CartesianGrid, 
   Tooltip
 } from 'recharts';
+import { MapContainer, TileLayer, Polyline, Popup, Marker, useMap } from 'react-leaflet';
+import L, { LatLngTuple, LatLngExpression } from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { Segment } from '@/models/pace';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { paceToSeconds, secondsToPace } from '@/utils/pace-utils';
+import { paceToSeconds, secondsToPace, calculateTotalTime } from '@/utils/pace-utils';
 
 interface GPXUploaderProps {
   segments: Segment[];
@@ -24,7 +29,33 @@ interface GPXUploaderProps {
 interface ElevationPoint {
   distance: number;
   elevation: number;
+  lat?: number;
+  lon?: number;
 }
+
+// Fix Leaflet icon issue with webpack/vite
+const fixLeafletIcon = () => {
+  // @ts-ignore
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+    iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+  });
+};
+
+// Helper component to handle map bounds
+const MapController = ({ points }: { points: LatLngExpression[] }) => {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (points.length > 0) {
+      map.fitBounds(points as L.LatLngBoundsExpression);
+    }
+  }, [map, points]);
+  
+  return null;
+};
 
 export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProps) {
   const [elevationData, setElevationData] = useState<ElevationPoint[]>([]);
@@ -32,16 +63,31 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
   const [fileName, setFileName] = useState<string | null>(null);
   const [totalElevGain, setTotalElevGain] = useState(0);
   const [totalElevLoss, setTotalElevLoss] = useState(0);
+  const [mapPoints, setMapPoints] = useState<LatLngTuple[]>([]);
+  const [segmentAnalysis, setSegmentAnalysis] = useState<{
+    segmentName: string;
+    startDist: number;
+    endDist: number;
+    elevGain: number;
+    elevLoss: number;
+    gradient: number;
+    isUphill: boolean;
+  }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
+  
+  // Initialize Leaflet icon
+  useEffect(() => {
+    fixLeafletIcon();
+  }, []);
 
-  // GPXファイルをアップロードして解析する
+  // Upload and parse GPX file
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     if (!file.name.toLowerCase().endsWith('.gpx')) {
-      setError('アップロードできるのはGPXファイルのみです');
+      setError('Only GPX files are supported');
       setFileName(null);
       return;
     }
@@ -55,31 +101,32 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
         const content = e.target?.result as string;
         parseGPX(content);
       } catch (err) {
-        console.error('GPX解析エラー:', err);
-        setError('GPXファイルの解析に失敗しました');
+        console.error('GPX parsing error:', err);
+        setError('Failed to parse GPX file');
       }
     };
     reader.onerror = () => {
-      setError('ファイルの読み込み中にエラーが発生しました');
+      setError('Error reading the file');
     };
     reader.readAsText(file);
   };
 
-  // GPXファイルを解析する
+  // Parse GPX file
   const parseGPX = (gpxContent: string) => {
     try {
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(gpxContent, "text/xml");
       
-      // トラックポイントを取得
+      // Get track points
       const trackPoints = Array.from(xmlDoc.getElementsByTagName('trkpt'));
       
       if (trackPoints.length === 0) {
-        setError('GPXファイルにトラックポイントが見つかりませんでした');
+        setError('No track points found in GPX file');
         return;
       }
       
       const points: ElevationPoint[] = [];
+      const mapCoordinates: LatLngTuple[] = [];
       let totalDistance = 0;
       let lastLat: number | null = null;
       let lastLon: number | null = null;
@@ -87,19 +134,22 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
       let elevGain = 0;
       let elevLoss = 0;
       
-      // 各トラックポイントを処理
+      // Process each track point
       trackPoints.forEach((point, index) => {
         const lat = parseFloat(point.getAttribute('lat') || '0');
         const lon = parseFloat(point.getAttribute('lon') || '0');
         
-        // 標高を取得
+        // Get elevation
         const eleElement = point.getElementsByTagName('ele')[0];
         const elevation = eleElement ? parseFloat(eleElement.textContent || '0') : 0;
         
-        // 最初のポイント以外は距離と標高差を計算
+        // Add to map coordinates
+        mapCoordinates.push([lat, lon] as LatLngTuple);
+        
+        // For all points except the first, calculate distance and elevation changes
         if (index > 0 && lastLat !== null && lastLon !== null && lastElevation !== null) {
-          // 簡易的な距離計算（ヒュベニの公式）
-          const R = 6371; // 地球の半径 (km)
+          // Distance calculation (Haversine formula)
+          const R = 6371; // Earth radius in km
           const dLat = (lat - lastLat) * (Math.PI / 180);
           const dLon = (lon - lastLon) * (Math.PI / 180);
           const a = 
@@ -107,11 +157,11 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
             Math.cos(lastLat * (Math.PI / 180)) * Math.cos(lat * (Math.PI / 180)) * 
             Math.sin(dLon / 2) * Math.sin(dLon / 2);
           const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          const segmentDistance = R * c; // km単位
+          const segmentDistance = R * c; // Distance in km
           
           totalDistance += segmentDistance;
           
-          // 標高差を計算
+          // Calculate elevation change
           const elevDiff = elevation - lastElevation;
           if (elevDiff > 0) {
             elevGain += elevDiff;
@@ -120,11 +170,13 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
           }
         }
         
-        // データポイントを追加（間引いて処理を軽くする）
+        // Add data points (reducing data points for performance)
         if (index === 0 || index === trackPoints.length - 1 || index % Math.max(1, Math.floor(trackPoints.length / 300)) === 0) {
           points.push({
             distance: parseFloat(totalDistance.toFixed(2)),
-            elevation: Math.round(elevation)
+            elevation: Math.round(elevation),
+            lat: lat,
+            lon: lon
           });
         }
         
@@ -133,53 +185,59 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
         lastElevation = elevation;
       });
       
+      // Set elevation data
       setElevationData(points);
+      
+      // Set map points
+      setMapPoints(mapCoordinates);
+      
+      // Set elevation statistics
       setTotalElevGain(Math.round(elevGain));
       setTotalElevLoss(Math.round(elevLoss));
       
+      // Analyze segments based on current pace plan
+      analyzeSegmentTerrain(points, segments);
+      
     } catch (err) {
-      console.error('GPX解析エラー:', err);
-      setError('GPXファイルの解析中にエラーが発生しました');
+      console.error('GPX parsing error:', err);
+      setError('Error parsing the GPX file');
     }
   };
 
-  // 標高データに基づいてペースを調整する
-  const applyElevationToPacePlan = () => {
-    if (elevationData.length === 0 || segments.length === 0) return;
+  // Analyze segment terrain based on elevation data
+  const analyzeSegmentTerrain = (points: ElevationPoint[], paceSegments: Segment[]) => {
+    if (points.length === 0 || paceSegments.length === 0) return;
     
-    // セグメントごとに標高変化を計算
-    const updatedSegments = segments.map((segment, index) => {
-      // セグメント名から距離の範囲を抽出 (例: "0-5km" → [0, 5])
+    const segmentAnalysisData = paceSegments.map(segment => {
+      // Extract distance range from segment name (e.g., "0-5km" → [0, 5])
       const distanceMatch = segment.name.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
       
-      // セグメント名からkmを削除して試す (例: "0-5km" が失敗した場合に "0-5" を試す)
+      // Try without "km" if first match fails
       const cleanName = segment.name.replace('km', '');
       const fallbackMatch = cleanName.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
       
-      // いずれかのマッチを使用
+      // Use either match
       const match = distanceMatch || fallbackMatch;
       
       if (!match) {
-        console.log("セグメント名の解析に失敗:", segment.name);
-        return segment; // パターンにマッチしない場合はそのまま返す
+        console.log("Failed to parse segment name:", segment.name);
+        return null;
       }
       
       const startDistance = parseFloat(match[1]);
       const endDistance = parseFloat(match[2]);
       
-      console.log(`セグメント "${segment.name}": ${startDistance}km - ${endDistance}km を処理`);
-      
-      // このセグメントの範囲内の標高データを見つける
-      const segmentElevData = elevationData.filter(
+      // Find elevation points in this segment range
+      const segmentElevData = points.filter(
         point => point.distance >= startDistance && point.distance <= endDistance
       );
       
       if (segmentElevData.length < 2) {
-        console.log(`セグメント "${segment.name}" の標高データが不足しています (${segmentElevData.length}ポイント)`);
-        return segment;
+        console.log(`Insufficient elevation data for segment "${segment.name}" (${segmentElevData.length} points)`);
+        return null;
       }
       
-      // セグメント内の上り下りを計算
+      // Calculate elevation gain/loss
       let segmentElevGain = 0;
       let segmentElevLoss = 0;
       
@@ -192,54 +250,110 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
         }
       }
       
-      // セグメントの距離
+      // Calculate segment distance and gradient
       const segmentDistance = endDistance - startDistance;
-      
-      // 平均勾配を計算
       const startElev = segmentElevData[0].elevation;
       const endElev = segmentElevData[segmentElevData.length-1].elevation;
       const netElevChange = endElev - startElev;
-      const avgGradient = (netElevChange / (segmentDistance * 1000)) * 100; // %で表示
+      const avgGradient = (netElevChange / (segmentDistance * 1000)) * 100; // Gradient in %
       
-      console.log(`セグメント "${segment.name}" の情報:`, {
-        上昇: segmentElevGain.toFixed(1) + "m",
-        下降: segmentElevLoss.toFixed(1) + "m", 
-        平均勾配: avgGradient.toFixed(2) + "%"
-      });
+      return {
+        segmentName: segment.name,
+        startDist: startDistance,
+        endDist: endDistance,
+        elevGain: Math.round(segmentElevGain),
+        elevLoss: Math.round(segmentElevLoss),
+        gradient: parseFloat(avgGradient.toFixed(2)),
+        isUphill: avgGradient > 0
+      };
+    }).filter(Boolean) as {
+      segmentName: string;
+      startDist: number;
+      endDist: number;
+      elevGain: number;
+      elevLoss: number;
+      gradient: number;
+      isUphill: boolean;
+    }[];
+    
+    setSegmentAnalysis(segmentAnalysisData);
+  };
+  
+  // Apply elevation-based pace adjustments
+  const applyElevationToPacePlan = () => {
+    if (elevationData.length === 0 || segments.length === 0) return;
+    
+    // Get original target time and total distance for reference
+    const originalTotalTime = calculateTotalTime(segments);
+    
+    // Calculate raw pace adjustments per segment
+    const updatedSegments = segments.map((segment, index) => {
+      // Extract distance range from segment name
+      const distanceMatch = segment.name.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
+      const cleanName = segment.name.replace('km', '');
+      const fallbackMatch = cleanName.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
+      const match = distanceMatch || fallbackMatch;
       
-      // 勾配と上昇量に基づいてペース調整値（秒単位）を計算
-      let paceAdjustment = 0;
-      
-      // 上りの場合は遅く、下りの場合は速く
-      if (avgGradient > 4 || (avgGradient > 2 && segmentElevGain > 100)) {
-        paceAdjustment = 30; // +30秒/km
-      } else if (avgGradient > 2 || (avgGradient > 1 && segmentElevGain > 80)) {
-        paceAdjustment = 20; // +20秒/km
-      } else if (avgGradient > 0.5 || (avgGradient > 0 && segmentElevGain > 50)) {
-        paceAdjustment = 10; // +10秒/km
-      } else if (avgGradient < -4 || (avgGradient < -2 && segmentElevLoss > 100)) {
-        paceAdjustment = -15; // -15秒/km
-      } else if (avgGradient < -2) {
-        paceAdjustment = -8; // -8秒/km
+      if (!match) {
+        console.log("Failed to parse segment name:", segment.name);
+        return segment;
       }
       
-      console.log(`セグメント "${segment.name}" のペース調整: ${paceAdjustment}秒/km`);
+      const startDistance = parseFloat(match[1]);
+      const endDistance = parseFloat(match[2]);
+      console.log(`Processing segment "${segment.name}": ${startDistance}km - ${endDistance}km`);
       
-      // 現在のペースを調整
+      // Find matching segment analysis
+      const analysis = segmentAnalysis.find(s => 
+        s.startDist === startDistance && s.endDist === endDistance
+      );
+      
+      if (!analysis) {
+        console.log(`No terrain analysis for segment "${segment.name}"`);
+        return segment;
+      }
+      
+      // Calculate segment distance
+      const segmentDistance = endDistance - startDistance;
+      
+      // Calculate pace adjustment based on terrain
+      let paceAdjustment = 0;
+      
+      // Pace adjustment logic: slower for uphills, faster for downhills
+      if (analysis.gradient > 4 || (analysis.gradient > 2 && analysis.elevGain > 100)) {
+        paceAdjustment = 30; // +30 sec/km for steep uphills
+      } else if (analysis.gradient > 2 || (analysis.gradient > 1 && analysis.elevGain > 80)) {
+        paceAdjustment = 20; // +20 sec/km for moderate uphills
+      } else if (analysis.gradient > 0.5 || (analysis.gradient > 0 && analysis.elevGain > 50)) {
+        paceAdjustment = 10; // +10 sec/km for gentle uphills
+      } else if (analysis.gradient < -4 || (analysis.gradient < -2 && analysis.elevLoss > 100)) {
+        paceAdjustment = -15; // -15 sec/km for steep downhills
+      } else if (analysis.gradient < -2) {
+        paceAdjustment = -8; // -8 sec/km for moderate downhills
+      }
+      
+      console.log(`Segment "${segment.name}" terrain analysis:`, {
+        'Elevation Gain': analysis.elevGain + "m",
+        'Elevation Loss': analysis.elevLoss + "m", 
+        'Gradient': analysis.gradient + "%",
+        'Pace Adjustment': paceAdjustment + " sec/km"
+      });
+      
+      // Apply pace adjustment
       const currentPaceSeconds = paceToSeconds(segment.customPace);
       const adjustedPaceSeconds = Math.max(0, currentPaceSeconds + paceAdjustment);
       const adjustedPace = secondsToPace(adjustedPaceSeconds);
       
-      // セグメント時間も更新
+      // Calculate new segment time
       const segmentTimeMinutes = adjustedPaceSeconds / 60 * segmentDistance;
       const minutes = Math.floor(segmentTimeMinutes);
       const seconds = Math.round((segmentTimeMinutes - minutes) * 60);
       const segmentTime = `${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
       
-      console.log(`セグメント "${segment.name}" の調整結果:`, {
-        元のペース: segment.customPace,
-        調整後ペース: adjustedPace,
-        新しいセグメント時間: segmentTime
+      console.log(`Segment "${segment.name}" pace adjustment:`, {
+        'Original Pace': segment.customPace,
+        'Adjusted Pace': adjustedPace,
+        'New Segment Time': segmentTime
       });
       
       return {
@@ -249,26 +363,127 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
       };
     });
     
-    console.log("すべてのセグメントの処理が完了しました");
-    onUpdateSegments(updatedSegments);
+    // Calculate new total time
+    const newTotalTime = calculateTotalTime(updatedSegments);
     
-    // 成功メッセージを表示
-    alert("標高データに基づいてペースプランを更新しました！");
+    // Recalibrate to maintain overall target time if needed
+    if (originalTotalTime !== newTotalTime) {
+      console.log("Recalibrating to maintain original target time:", {
+        'Original Total': originalTotalTime,
+        'New Total': newTotalTime
+      });
+      
+      // Calculate adjustment factor
+      const originalTimeInSeconds = paceToSeconds(originalTotalTime) * 60; // Convert from min/km to seconds
+      const newTimeInSeconds = paceToSeconds(newTotalTime) * 60;
+      const factor = originalTimeInSeconds / newTimeInSeconds;
+      
+      // Apply the factor to all segment paces
+      const recalibratedSegments = updatedSegments.map(segment => {
+        const paceInSeconds = paceToSeconds(segment.customPace);
+        const recalibratedPaceSeconds = paceInSeconds * factor;
+        const recalibratedPace = secondsToPace(recalibratedPaceSeconds);
+        
+        // Recalculate segment time
+        const distanceMatch = segment.name.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
+        const cleanName = segment.name.replace('km', '');
+        const fallbackMatch = cleanName.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
+        const match = distanceMatch || fallbackMatch;
+        
+        if (!match) return segment;
+        
+        const startDistance = parseFloat(match[1]);
+        const endDistance = parseFloat(match[2]);
+        const segmentDistance = endDistance - startDistance;
+        
+        const segmentTimeMinutes = recalibratedPaceSeconds / 60 * segmentDistance;
+        const minutes = Math.floor(segmentTimeMinutes);
+        const seconds = Math.round((segmentTimeMinutes - minutes) * 60);
+        const segmentTime = `${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+        
+        return {
+          ...segment,
+          customPace: recalibratedPace,
+          segmentTime
+        };
+      });
+      
+      console.log("Recalibration complete. New total time:", calculateTotalTime(recalibratedSegments));
+      onUpdateSegments(recalibratedSegments);
+    } else {
+      onUpdateSegments(updatedSegments);
+    }
+    
+    // Show success message
+    alert("Pace plan updated based on terrain analysis!");
   };
 
   const handleButtonClick = () => {
     fileInputRef.current?.click();
   };
 
-  // グラフのY軸の範囲を計算
+  // Calculate y-axis range for elevation chart
   const yAxisDomain = React.useMemo(() => {
     if (elevationData.length === 0) return [0, 100];
     const elevations = elevationData.map(d => d.elevation);
     const minElev = Math.floor(Math.min(...elevations));
     const maxElev = Math.ceil(Math.max(...elevations));
-    const padding = Math.max(10, Math.round((maxElev - minElev) * 0.1)); // 最低10m、または10%のパディング
+    const padding = Math.max(10, Math.round((maxElev - minElev) * 0.1)); // At least 10m padding or 10%
     return [Math.max(0, minElev - padding), maxElev + padding];
   }, [elevationData]);
+  
+  // Generate color-coded polylines for map based on segment gradient
+  const generateColorCodedRoutes = () => {
+    if (mapPoints.length === 0 || segmentAnalysis.length === 0) return [];
+    
+    // Create an array of colored path segments
+    const coloredSegments: {
+      points: LatLngTuple[];
+      color: string;
+      segmentName: string;
+      gradient: number;
+      elevGain: number;
+      elevLoss: number;
+    }[] = [];
+    
+    // For each analyzed segment, find the matching points
+    segmentAnalysis.forEach(segment => {
+      const { startDist, endDist, gradient, isUphill, elevGain, elevLoss } = segment;
+      
+      // Find points that fall within this segment
+      const segmentPoints = elevationData
+        .filter(p => p.lat && p.lon && p.distance >= startDist && p.distance <= endDist)
+        .map(p => [p.lat!, p.lon!] as LatLngTuple);
+      
+      if (segmentPoints.length > 1) {
+        // Determine color based on gradient
+        let color = '#6B7280'; // Default gray for flat
+        
+        if (gradient > 4) {
+          color = '#EF4444'; // Red for steep uphill
+        } else if (gradient > 2) {
+          color = '#F59E0B'; // Orange for moderate uphill
+        } else if (gradient > 0.5) {
+          color = '#FBBF24'; // Yellow for gentle uphill
+        } else if (gradient < -4) {
+          color = '#10B981'; // Green for steep downhill
+        } else if (gradient < -2) {
+          color = '#34D399'; // Light green for moderate downhill
+        }
+        
+        coloredSegments.push({
+          points: segmentPoints,
+          color,
+          segmentName: segment.segmentName,
+          gradient,
+          elevGain,
+          elevLoss
+        });
+      }
+    });
+    
+    return coloredSegments;
+  };
 
   return (
     <div className="space-y-4">
@@ -280,7 +495,7 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
             className="flex items-center gap-2"
           >
             <Upload size={16} />
-            <span>GPXファイルをアップロード</span>
+            <span>Upload GPX File</span>
           </Button>
           
           {fileName && (
@@ -311,7 +526,7 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
             <Card>
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
-                  <div className="text-sm font-medium text-gray-500 dark:text-gray-400">総上昇量</div>
+                  <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Elevation Gain</div>
                   <div className="text-2xl font-bold">{totalElevGain}m</div>
                 </div>
                 <div className="h-12 w-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
@@ -325,7 +540,7 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
             <Card>
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
-                  <div className="text-sm font-medium text-gray-500 dark:text-gray-400">総下降量</div>
+                  <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Elevation Loss</div>
                   <div className="text-2xl font-bold">{totalElevLoss}m</div>
                 </div>
                 <div className="h-12 w-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
@@ -339,7 +554,7 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
             <Card>
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
-                  <div className="text-sm font-medium text-gray-500 dark:text-gray-400">標高差</div>
+                  <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Net Elevation</div>
                   <div className="text-2xl font-bold">{totalElevGain - totalElevLoss}m</div>
                 </div>
                 <div className="h-12 w-12 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
@@ -351,71 +566,200 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
             </Card>
           </div>
           
-          <div className="h-[300px] mt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={elevationData}
-                margin={{
-                  top: 10,
-                  right: 30,
-                  left: 10,
-                  bottom: 10,
-                }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="distance" 
-                  label={{ 
-                    value: 'km',
-                    position: 'insideBottomRight',
-                    offset: -5
-                  }}
-                  tick={{ fontSize: isMobile ? 10 : 12 }}
-                />
-                <YAxis 
-                  domain={yAxisDomain}
-                  label={{ 
-                    value: '標高 (m)', 
-                    angle: -90, 
-                    position: 'insideLeft',
-                    style: { 
-                      textAnchor: 'middle',
-                      fontSize: isMobile ? 10 : 12 
-                    }
-                  }}
-                  tick={{ fontSize: isMobile ? 10 : 12 }}
-                />
-                <Tooltip 
-                  formatter={(value: number) => [`${value} m`, '標高']}
-                  labelFormatter={(label) => `距離: ${label} km`}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="elevation" 
-                  stroke="#3B82F6" 
-                  fill="#93C5FD" 
-                  fillOpacity={0.8}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          <Tabs defaultValue="elevation" className="mt-4">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="elevation">Elevation Profile</TabsTrigger>
+              <TabsTrigger value="map">Course Map</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="elevation" className="mt-4">
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={elevationData}
+                    margin={{
+                      top: 10,
+                      right: 30,
+                      left: 10,
+                      bottom: 10,
+                    }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="distance" 
+                      label={{ 
+                        value: 'km',
+                        position: 'insideBottomRight',
+                        offset: -5
+                      }}
+                      tick={{ fontSize: isMobile ? 10 : 12 }}
+                    />
+                    <YAxis 
+                      domain={yAxisDomain}
+                      label={{ 
+                        value: 'Elevation (m)', 
+                        angle: -90, 
+                        position: 'insideLeft',
+                        style: { 
+                          textAnchor: 'middle',
+                          fontSize: isMobile ? 10 : 12 
+                        }
+                      }}
+                      tick={{ fontSize: isMobile ? 10 : 12 }}
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => [`${value} m`, 'Elevation']}
+                      labelFormatter={(label) => `Distance: ${label} km`}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="elevation" 
+                      stroke="#3B82F6" 
+                      fill="#93C5FD" 
+                      fillOpacity={0.8}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="map" className="mt-4">
+              <div className="h-[350px] border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                {mapPoints.length > 0 ? (
+                  <MapContainer 
+                    center={mapPoints[0]} 
+                    zoom={12} 
+                    style={{ height: '100%', width: '100%' }}
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    
+                    {/* Color-coded route segments */}
+                    {generateColorCodedRoutes().map((segment, index) => (
+                      <React.Fragment key={index}>
+                        <Polyline 
+                          positions={segment.points}
+                          color={segment.color}
+                          weight={4}
+                        >
+                          <Popup>
+                            <div className="text-sm">
+                              <p className="font-semibold">{segment.segmentName}</p>
+                              <p>Gradient: {segment.gradient}%</p>
+                              <p>Gain: {segment.elevGain}m / Loss: {segment.elevLoss}m</p>
+                            </div>
+                          </Popup>
+                        </Polyline>
+                      </React.Fragment>
+                    ))}
+                    
+                    {/* Start marker */}
+                    {mapPoints.length > 0 && (
+                      <Marker position={mapPoints[0]}>
+                        <Popup>Start</Popup>
+                      </Marker>
+                    )}
+                    
+                    {/* Finish marker */}
+                    {mapPoints.length > 0 && (
+                      <Marker position={mapPoints[mapPoints.length - 1]}>
+                        <Popup>Finish</Popup>
+                      </Marker>
+                    )}
+                    
+                    <MapController points={mapPoints} />
+                  </MapContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center">
+                    <p className="text-gray-500 dark:text-gray-400">Map data not available</p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
           
-          <div className="flex justify-between items-center bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-            <div className="flex items-start gap-2">
-              <Info size={20} className="text-blue-600 dark:text-blue-400 mt-0.5" />
-              <div className="text-sm text-blue-700 dark:text-blue-300">
-                標高データに基づいて、上り坂では遅く、下り坂では速いペースに自動調整できます。
+          {segmentAnalysis.length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-lg font-semibold mb-2">Segment Terrain Analysis</h3>
+              <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-800">
+                    <tr>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Segment
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Type
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Gain (m)
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Loss (m)
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Gradient (%)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                    {segmentAnalysis.map((segment, i) => (
+                      <tr key={i} className={segment.isUphill ? 'bg-red-50 dark:bg-red-900/10' : 'bg-green-50 dark:bg-green-900/10'}>
+                        <td className="px-4 py-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {segment.segmentName}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-center">
+                          {segment.isUphill ? (
+                            <Badge variant="destructive" className="gap-1">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="18 15 12 9 6 15"></polyline>
+                              </svg>
+                              Uphill
+                            </Badge>
+                          ) : (
+                            <Badge variant="success" className="gap-1 bg-green-500">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                              </svg>
+                              Downhill
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 text-right">
+                          {segment.elevGain}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 text-right">
+                          {segment.elevLoss}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 text-right">
+                          {segment.gradient.toFixed(1)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
-            <Button onClick={applyElevationToPacePlan}>
-              ペースに適用
+          )}
+          
+          <div className="flex justify-between items-center bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg mt-4">
+            <div className="flex items-start gap-2 flex-1">
+              <Info size={20} className="text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-blue-700 dark:text-blue-300">
+                Based on terrain data, the pace will be automatically adjusted - slower for uphills, faster for downhills, while maintaining your overall target time.
+              </div>
+            </div>
+            <Button onClick={applyElevationToPacePlan} className="ml-4 whitespace-nowrap">
+              Apply to Pace Plan
             </Button>
           </div>
         </div>
       ) : (
         <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
           <p className="text-gray-500 dark:text-gray-400">
-            GPXファイルをアップロードすると、標高プロファイルと自動ペース調整機能が表示されます
+            Upload a GPX file to view elevation profile, course map, and get terrain-optimized pace recommendations
           </p>
         </div>
       )}
