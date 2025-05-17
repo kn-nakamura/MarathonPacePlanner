@@ -151,17 +151,33 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
     const updatedSegments = segments.map((segment, index) => {
       // セグメント名から距離の範囲を抽出 (例: "0-5km" → [0, 5])
       const distanceMatch = segment.name.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
-      if (!distanceMatch) return segment;
       
-      const startDistance = parseFloat(distanceMatch[1]);
-      const endDistance = parseFloat(distanceMatch[2]);
+      // セグメント名からkmを削除して試す (例: "0-5km" が失敗した場合に "0-5" を試す)
+      const cleanName = segment.name.replace('km', '');
+      const fallbackMatch = cleanName.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
+      
+      // いずれかのマッチを使用
+      const match = distanceMatch || fallbackMatch;
+      
+      if (!match) {
+        console.log("セグメント名の解析に失敗:", segment.name);
+        return segment; // パターンにマッチしない場合はそのまま返す
+      }
+      
+      const startDistance = parseFloat(match[1]);
+      const endDistance = parseFloat(match[2]);
+      
+      console.log(`セグメント "${segment.name}": ${startDistance}km - ${endDistance}km を処理`);
       
       // このセグメントの範囲内の標高データを見つける
       const segmentElevData = elevationData.filter(
         point => point.distance >= startDistance && point.distance <= endDistance
       );
       
-      if (segmentElevData.length < 2) return segment;
+      if (segmentElevData.length < 2) {
+        console.log(`セグメント "${segment.name}" の標高データが不足しています (${segmentElevData.length}ポイント)`);
+        return segment;
+      }
       
       // セグメント内の上り下りを計算
       let segmentElevGain = 0;
@@ -185,6 +201,12 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
       const netElevChange = endElev - startElev;
       const avgGradient = (netElevChange / (segmentDistance * 1000)) * 100; // %で表示
       
+      console.log(`セグメント "${segment.name}" の情報:`, {
+        上昇: segmentElevGain.toFixed(1) + "m",
+        下降: segmentElevLoss.toFixed(1) + "m", 
+        平均勾配: avgGradient.toFixed(2) + "%"
+      });
+      
       // 勾配と上昇量に基づいてペース調整値（秒単位）を計算
       let paceAdjustment = 0;
       
@@ -201,6 +223,8 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
         paceAdjustment = -8; // -8秒/km
       }
       
+      console.log(`セグメント "${segment.name}" のペース調整: ${paceAdjustment}秒/km`);
+      
       // 現在のペースを調整
       const currentPaceSeconds = paceToSeconds(segment.customPace);
       const adjustedPaceSeconds = Math.max(0, currentPaceSeconds + paceAdjustment);
@@ -212,6 +236,12 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
       const seconds = Math.round((segmentTimeMinutes - minutes) * 60);
       const segmentTime = `${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
       
+      console.log(`セグメント "${segment.name}" の調整結果:`, {
+        元のペース: segment.customPace,
+        調整後ペース: adjustedPace,
+        新しいセグメント時間: segmentTime
+      });
+      
       return {
         ...segment,
         customPace: adjustedPace,
@@ -219,7 +249,11 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
       };
     });
     
+    console.log("すべてのセグメントの処理が完了しました");
     onUpdateSegments(updatedSegments);
+    
+    // 成功メッセージを表示
+    alert("標高データに基づいてペースプランを更新しました！");
   };
 
   const handleButtonClick = () => {
