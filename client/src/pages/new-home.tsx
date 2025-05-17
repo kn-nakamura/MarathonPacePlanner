@@ -49,8 +49,9 @@ export default function Home() {
       const [paceMin, paceSec] = paceStr.split(':').map(Number);
       const paceInSeconds = (paceMin * 60) + paceSec;
       
-      // スプリット戦略による調整（ネガティブ=後半速く、ポジティブ=前半速く）
-      const adjustmentInSeconds = -(adjustment * splitStrategy * paceInSeconds * 0.002);
+      // スプリット戦略による調整（マイナス値=後半速く、プラス値=前半速く）
+      // 調整方向を反転（ポジティブスプリットは前半が遅い＝前半のペース秒数が大きい）
+      const adjustmentInSeconds = (adjustment * splitStrategy * paceInSeconds * 0.002);
       
       // 調整したペースを秒から分:秒形式に戻す
       const newPaceInSeconds = Math.max(1, paceInSeconds + adjustmentInSeconds);
@@ -140,10 +141,19 @@ export default function Home() {
   // Format the target time
   const targetTime = `${targetHours}:${targetMinutes}:${targetSeconds}`;
 
-  // Calculate total time and average pace based on selected race distance
-  const totalTime = calculateTotalTime(segments);
-  const distanceValue = raceDistance === 'Ultra' ? ultraDistance : RACE_DISTANCES[raceDistance]; 
-  const averagePace = calculateAveragePace(totalTime, distanceValue);
+  // Calculate total time and average pace based on selected race distance - useEffect内で更新
+  const [totalTime, setTotalTime] = useState<string>("");
+  const [averagePace, setAveragePace] = useState<string>("");
+  
+  // セグメントが変更されたときに合計時間と平均ペースを再計算
+  useEffect(() => {
+    const newTotalTime = calculateTotalTime(segments);
+    const distanceValue = raceDistance === 'Ultra' ? ultraDistance : RACE_DISTANCES[raceDistance];
+    const newAveragePace = calculateAveragePace(newTotalTime, distanceValue);
+    
+    setTotalTime(newTotalTime);
+    setAveragePace(newAveragePace);
+  }, [segments, raceDistance, ultraDistance]);
 
   // 平均ペース入力用
   const [averagePaceInput, setAveragePaceInput] = useState<string>("");
@@ -332,9 +342,10 @@ export default function Home() {
         const [paceMin, paceSec] = defaultPace.replace('/km','').split(':').map(Number);
         const paceInSeconds = (paceMin * 60) + paceSec;
         
-        // スプリット戦略による調整（ネガティブ=後半速く、ポジティブ=前半速く）
+        // スプリット戦略による調整（マイナス値=後半速く、プラス値=前半速く）
         // splitStrategyは-50から50の値
-        const adjustmentInSeconds = -(adjustment * splitStrategy * paceInSeconds * 0.002);
+        // 調整方向を反転（ポジティブスプリットは前半が遅い＝前半のペース秒数が大きい）
+        const adjustmentInSeconds = (adjustment * splitStrategy * paceInSeconds * 0.002);
         
         // 調整したペースを秒から分:秒形式に戻す
         const newPaceInSeconds = Math.max(1, paceInSeconds + adjustmentInSeconds);
