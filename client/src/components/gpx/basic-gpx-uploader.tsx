@@ -108,7 +108,8 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
     gradient: number;
     isUphill: boolean;
   }[]>([]);
-  const [paceAdjustmentFactor, setPaceAdjustmentFactor] = useState<number>(0.0); // 0.0 = no adjustment by default
+  const [gradientFactor, setGradientFactor] = useState<number>(0.0); // 0.0 = no gradient adjustment by default
+  const [pacingStrategyFactor, setPacingStrategyFactor] = useState<number>(0.0); // 0.0 = no pacing strategy adjustment
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
   
@@ -319,8 +320,8 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
   const applyElevationToPacePlan = () => {
     if (elevationData.length === 0 || segments.length === 0) return;
     
-    // スライダーが完全に0の場合は、すべてのセグメントを元のターゲットペースに戻す
-    if (paceAdjustmentFactor === 0) {
+    // 両方のファクターが0の場合は、すべてのセグメントを元のターゲットペースに戻す
+    if (gradientFactor === 0 && pacingStrategyFactor === 0) {
       const resetSegments = segments.map(segment => {
         // 元のターゲットペースを使用
         const distanceMatch = segment.name.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
@@ -409,8 +410,8 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
         }
       }
       
-      // スライダーが0の場合は元のターゲットペースに完全に戻す
-      if (paceAdjustmentFactor === 0) {
+      // 両方のファクターが0の場合は元のターゲットペースに完全に戻す
+      if (gradientFactor === 0 && pacingStrategyFactor === 0) {
         // 元のターゲットペースを使用
         const targetTime = segment.targetPace.replace('/km', '');
         const [min, sec] = targetTime.split(':').map(Number);
@@ -428,8 +429,8 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
         };
       }
       
-      // Apply adjustment intensity factor (from slider)
-      paceAdjustment = paceAdjustment * paceAdjustmentFactor;
+      // Apply gradient factor (from slider)
+      paceAdjustment = paceAdjustment * gradientFactor;
       
       // Apply final pace adjustment (terrain only, splitStrategy is handled in the UI)
       const finalPaceAdjustment = paceAdjustment;
@@ -791,7 +792,7 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
                                 key={`dist-${dist}`} 
                                 position={[closestPoint.lat, closestPoint.lon]}
                                 icon={L.divIcon({
-                                  html: `<div class="bg-white px-1 py-0.5 rounded border border-blue-500 text-xs font-bold">${dist}km</div>`,
+                                  html: `<div class="bg-white px-1 py-0.5 rounded border border-blue-500 text-xs font-bold">${dist}</div>`,
                                   className: '',
                                   iconSize: [30, 20],
                                   iconAnchor: [15, 10]
@@ -888,70 +889,25 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
               </div>
             </div>
             
-            <div className="space-y-4">
-              {/* Pace Adjustment Intensity Slider */}
+            <div className="space-y-6">
+              {/* Gradient Adjustment Slider */}
               <div>
                 <div className="flex justify-between mb-1">
-                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Adjustment Intensity</span>
-                  <span className="text-sm text-gray-500 dark:text-gray-500">{Math.round(paceAdjustmentFactor * 100)}%</span>
+                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Gradient Factor</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-500">{Math.round(gradientFactor * 100)}%</span>
                 </div>
                 <Slider 
                   min={0} 
                   max={2} 
                   step={0.1}
-                  value={[paceAdjustmentFactor]} 
+                  value={[gradientFactor]} 
                   onValueChange={(vals) => {
                     // スライダー値を更新した後、即座にペースプランに適用
                     const newValue = vals[0];
-                    console.log(`Adjustment factor changed to ${newValue}`);
+                    console.log(`Gradient factor changed to ${newValue}`);
                     
-                    // スライダー変更→ペース更新の処理を確実に行うため、setState後のコールバックを使用
-                    setPaceAdjustmentFactor(newValue);
-                    
-                    // 直接ここで関数を呼び出す
-                    if (newValue === 0) {
-                      // スライダーが0の場合、完全にリセット
-                      const resetSegments = segments.map(segment => {
-                        // 元のターゲットペースを使用
-                        const distanceMatch = segment.name.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
-                        const cleanName = segment.name.replace('km', '');
-                        const fallbackMatch = cleanName.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
-                        const match = distanceMatch || fallbackMatch;
-                        
-                        if (!match) return segment;
-                        
-                        const startDistance = parseFloat(match[1]);
-                        const endDistance = parseFloat(match[2]);
-                        const segmentDistance = endDistance - startDistance;
-                        
-                        // ターゲットペースから区間時間を計算
-                        const targetTime = segment.targetPace.replace('/km', '');
-                        const [min, sec] = targetTime.split(':').map(Number);
-                        const totalSeconds = min * 60 + sec;
-                        const segTimeSeconds = totalSeconds * segmentDistance;
-                        let segTimeMin = Math.floor(segTimeSeconds / 60);
-                        let segTimeSec = Math.round(segTimeSeconds % 60);
-                        
-                        // 秒数が60になった場合は分に繰り上げる
-                        if (segTimeSec === 60) {
-                          segTimeMin += 1;
-                          segTimeSec = 0;
-                        }
-                        
-                        const segmentTimeFormatted = `${segTimeMin}:${segTimeSec < 10 ? '0' + segTimeSec : segTimeSec}`;
-                        
-                        return {
-                          ...segment,
-                          customPace: segment.targetPace,
-                          segmentTime: segmentTimeFormatted
-                        };
-                      });
-                      
-                      onUpdateSegments(resetSegments);
-                    } else {
-                      // 通常の勾配調整
-                      applyElevationToPacePlan();
-                    }
+                    setGradientFactor(newValue);
+                    applyElevationToPacePlan();
                   }}
                   className="w-full"
                 />
@@ -960,6 +916,87 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
                   <span>Normal</span>
                   <span>Strong</span>
                 </div>
+              </div>
+              
+              {/* Pacing Strategy Slider */}
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Pacing Strategy Factor</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-500">{Math.round(pacingStrategyFactor * 100)}%</span>
+                </div>
+                <Slider 
+                  min={-1} 
+                  max={1} 
+                  step={0.1}
+                  value={[pacingStrategyFactor]} 
+                  onValueChange={(vals) => {
+                    // スライダー値を更新した後、即座にペースプランに適用
+                    const newValue = vals[0];
+                    console.log(`Pacing strategy factor changed to ${newValue}`);
+                    
+                    setPacingStrategyFactor(newValue);
+                    applyElevationToPacePlan();
+                  }}
+                  className="w-full"
+                />
+                <div className="flex justify-between mt-1 text-xs text-gray-500">
+                  <span>Faster Finish</span>
+                  <span>Even</span>
+                  <span>Faster Start</span>
+                </div>
+              </div>
+              
+              {/* Reset Button */}
+              <div className="text-center">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    setGradientFactor(0);
+                    setPacingStrategyFactor(0);
+                    
+                    // 完全リセット処理
+                    const resetSegments = segments.map(segment => {
+                      // 元のターゲットペースを使用
+                      const distanceMatch = segment.name.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
+                      const cleanName = segment.name.replace('km', '');
+                      const fallbackMatch = cleanName.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
+                      const match = distanceMatch || fallbackMatch;
+                      
+                      if (!match) return segment;
+                      
+                      const startDistance = parseFloat(match[1]);
+                      const endDistance = parseFloat(match[2]);
+                      const segmentDistance = endDistance - startDistance;
+                      
+                      // ターゲットペースから区間時間を計算
+                      const targetTime = segment.targetPace.replace('/km', '');
+                      const [min, sec] = targetTime.split(':').map(Number);
+                      const totalSeconds = min * 60 + sec;
+                      const segTimeSeconds = totalSeconds * segmentDistance;
+                      let segTimeMin = Math.floor(segTimeSeconds / 60);
+                      let segTimeSec = Math.round(segTimeSeconds % 60);
+                      
+                      // 秒数が60になった場合は分に繰り上げる
+                      if (segTimeSec === 60) {
+                        segTimeMin += 1;
+                        segTimeSec = 0;
+                      }
+                      
+                      const segmentTimeFormatted = `${segTimeMin}:${segTimeSec < 10 ? '0' + segTimeSec : segTimeSec}`;
+                      
+                      return {
+                        ...segment,
+                        customPace: segment.targetPace,
+                        segmentTime: segmentTimeFormatted
+                      };
+                    });
+                    
+                    onUpdateSegments(resetSegments);
+                  }}
+                >
+                  Reset to Target Pace
+                </Button>
               </div>
             </div>
             
