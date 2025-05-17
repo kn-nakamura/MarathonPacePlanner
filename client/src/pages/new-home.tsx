@@ -13,7 +13,7 @@ import { PlanSummaryCard } from '@/components/result-summary/plan-summary-card';
 import { ExportSegmentTable } from '@/components/pace-chart/export-segment-table';
 import { ExportChart } from '@/components/pace-chart/export-chart';
 import { TimeSelectDropdowns, PaceSelectDropdowns } from '@/components/ui/select-dropdown';
-import { DEFAULT_SEGMENTS, Segment, PacePlan } from '@/models/pace';
+import { DEFAULT_SEGMENTS, Segment, PacePlan, RaceDistance, RACE_DISTANCES, generateSegments } from '@/models/pace';
 import { usePaceConverter } from '@/hooks/use-pace-converter';
 import { formatTime, calculateTotalTime, calculateAveragePace } from '@/utils/pace-utils';
 import { apiRequest } from '@/lib/queryClient';
@@ -27,6 +27,8 @@ export default function Home() {
   const [targetSeconds, setTargetSeconds] = useState<string>("00");
   const [segments, setSegments] = useState<Segment[]>([...DEFAULT_SEGMENTS]);
   const [planName, setPlanName] = useState<string>("");
+  const [raceDistance, setRaceDistance] = useState<RaceDistance>("Full");
+  const [ultraDistance, setUltraDistance] = useState<number>(100);
   const { calculatePace, calculateTime } = usePaceConverter();
   const { toast } = useToast();
   
@@ -307,6 +309,44 @@ export default function Home() {
               <CardTitle>Create Pace Plan</CardTitle>
             </CardHeader>
             <CardContent>
+              {/* Race Distance Selector */}
+              <div className="mb-6">
+                <Label htmlFor="race-distance" className="mb-2 block">Race Distance</Label>
+                <div className="flex items-center gap-4">
+                  <Select 
+                    value={raceDistance} 
+                    onValueChange={(value) => handleRaceDistanceChange(value as RaceDistance)}
+                  >
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Select Distance" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5K">5K</SelectItem>
+                      <SelectItem value="10K">10K</SelectItem>
+                      <SelectItem value="Half">Half Marathon (21.1km)</SelectItem>
+                      <SelectItem value="Full">Marathon (42.2km)</SelectItem>
+                      <SelectItem value="Ultra">Ultra Marathon</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  {raceDistance === 'Ultra' && (
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="ultra-distance">Distance (km):</Label>
+                      <Input
+                        id="ultra-distance"
+                        type="number"
+                        min="50"
+                        max="200"
+                        value={ultraDistance}
+                        onChange={(e) => handleUltraDistanceChange(Number(e.target.value))}
+                        className="w-[100px]"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Input Mode Toggle */}
               <div className="flex items-center mb-6 space-x-2">
                 <Switch 
                   id="input-mode" 
