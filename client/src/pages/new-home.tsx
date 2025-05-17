@@ -30,6 +30,7 @@ export default function Home() {
   const [planName, setPlanName] = useState<string>("");
   const [raceDistance, setRaceDistance] = useState<RaceDistance>("Full");
   const [ultraDistance, setUltraDistance] = useState<number>(100);
+  const [splitStrategy, setSplitStrategy] = useState<number>(0); // 0 = even pace, negative = negative split, positive = positive split
   const { calculatePace, calculateTime } = usePaceConverter();
   const { toast } = useToast();
   
