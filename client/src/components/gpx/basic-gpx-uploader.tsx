@@ -13,7 +13,8 @@ import {
   XAxis, 
   YAxis, 
   CartesianGrid, 
-  Tooltip
+  Tooltip,
+  ReferenceLine
 } from 'recharts';
 import { MapContainer, TileLayer, Polyline, Popup, Marker, useMap } from 'react-leaflet';
 import L, { LatLngTuple, LatLngExpression } from 'leaflet';
@@ -642,13 +643,52 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
                       formatter={(value: number) => [`${value} m`, 'Elevation']}
                       labelFormatter={(label) => `Distance: ${label} km`}
                     />
-                    <Area 
-                      type="monotone" 
-                      dataKey="elevation" 
-                      stroke="#3B82F6" 
-                      fill="#93C5FD" 
-                      fillOpacity={0.8}
-                    />
+                    <defs>
+                      <linearGradient id="colorUphill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0.2}/>
+                      </linearGradient>
+                      <linearGradient id="colorDownhill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0.2}/>
+                      </linearGradient>
+                    </defs>
+                    
+                    {/* Draw segment boundary grid lines */}
+                    {segmentAnalysis.map((segment, idx) => (
+                      <ReferenceLine 
+                        key={`grid-${idx}`} 
+                        x={segment.startDist} 
+                        stroke="#888" 
+                        strokeDasharray="3 3" 
+                        label={{ 
+                          value: segment.startDist.toString(), 
+                          position: 'insideBottomLeft',
+                          fill: '#888',
+                          fontSize: 10
+                        }} 
+                      />
+                    ))}
+                    
+                    {/* Color-coded elevation profile by segment */}
+                    {segmentAnalysis.map((segment, idx) => {
+                      // Create a filtered array of points for this segment
+                      const segmentPoints = elevationData.filter(
+                        point => point.distance >= segment.startDist && point.distance <= segment.endDist
+                      );
+                      
+                      return segmentPoints.length > 0 ? (
+                        <Area 
+                          key={`segment-${idx}`}
+                          type="monotone" 
+                          dataKey="elevation" 
+                          data={segmentPoints}
+                          stroke={segment.isUphill ? "#ef4444" : "#22c55e"} 
+                          fill={segment.isUphill ? "url(#colorUphill)" : "url(#colorDownhill)"}
+                          fillOpacity={0.8}
+                        />
+                      ) : null;
+                    })}
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -669,23 +709,45 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
                     />
                     
                     {/* Color-coded route segments */}
-                    {generateColorCodedRoutes().map((segment, index) => (
-                      <React.Fragment key={index}>
-                        <Polyline 
-                          positions={segment.points}
-                          color={segment.color}
-                          weight={4}
-                        >
-                          <Popup>
-                            <div className="text-sm">
-                              <p className="font-semibold">{segment.segmentName}</p>
-                              <p>Gradient: {segment.gradient}%</p>
-                              <p>Gain: {segment.elevGain}m / Loss: {segment.elevLoss}m</p>
-                            </div>
-                          </Popup>
-                        </Polyline>
-                      </React.Fragment>
-                    ))}
+                    {segmentAnalysis.map((segment, index) => {
+                      // Find points that belong to this segment
+                      const segmentStartIdx = elevationData.findIndex(p => p.distance >= segment.startDist);
+                      const segmentEndIdx = elevationData.findIndex(p => p.distance > segment.endDist);
+                      
+                      // If end index not found, use the last point
+                      const actualEndIdx = segmentEndIdx === -1 ? elevationData.length - 1 : segmentEndIdx - 1;
+                      
+                      if (segmentStartIdx >= 0 && actualEndIdx >= segmentStartIdx) {
+                        // Extract map points for this segment
+                        const segmentPoints: LatLngTuple[] = [];
+                        for (let i = segmentStartIdx; i <= actualEndIdx && i < mapPoints.length; i++) {
+                          if (mapPoints[i] && mapPoints[i][0] && mapPoints[i][1]) {
+                            segmentPoints.push(mapPoints[i]);
+                          }
+                        }
+                        
+                        if (segmentPoints.length > 1) {
+                          return (
+                            <React.Fragment key={index}>
+                              <Polyline 
+                                positions={segmentPoints}
+                                color={segment.isUphill ? "#ef4444" : "#22c55e"}
+                                weight={4}
+                              >
+                                <Popup>
+                                  <div className="text-sm">
+                                    <p className="font-semibold">{segment.segmentName}</p>
+                                    <p>Gradient: {segment.gradient.toFixed(1)}%</p>
+                                    <p>Gain: {segment.elevGain}m / Loss: {segment.elevLoss}m</p>
+                                  </div>
+                                </Popup>
+                              </Polyline>
+                            </React.Fragment>
+                          );
+                        }
+                      }
+                      return null;
+                    })}
                     
                     {/* Start marker */}
                     {mapPoints.length > 0 && (
