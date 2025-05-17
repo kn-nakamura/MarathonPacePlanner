@@ -96,7 +96,7 @@ const MapController = ({ points }: { points: LatLngExpression[] }) => {
   return null;
 };
 
-// PolyLineにマウスオーバー機能を追加するカスタムコンポーネント
+// Custom component to add mouse hover interaction to polylines
 const InteractivePolylineSegment = ({ 
   positions, 
   color, 
@@ -112,14 +112,38 @@ const InteractivePolylineSegment = ({
   onMouseOver: (index: number) => void; 
   onMouseOut: () => void;
 }) => {
+  const map = useMap();
+  
   return (
     <Polyline 
       positions={positions}
       color={color}
       weight={weight}
       eventHandlers={{
-        mouseover: () => onMouseOver(index),
-        mouseout: () => onMouseOut()
+        mouseover: (e) => {
+          // Highlight on hover
+          e.target.setStyle({
+            weight: weight + 2,
+            opacity: 1,
+            dashArray: '',
+          });
+          
+          if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+            e.target.bringToFront();
+          }
+          
+          onMouseOver(index);
+        },
+        mouseout: (e) => {
+          // Reset style on mouseout
+          e.target.setStyle({
+            weight: weight,
+            opacity: 0.7,
+            dashArray: null
+          });
+          
+          onMouseOut();
+        }
       }}
     />
   );
@@ -775,7 +799,7 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
                   <h3 className="text-lg font-bold">Course Map</h3>
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-gray-500">
-                      {showElevationColors ? '標高表示' : '通常表示'}
+                      {showElevationColors ? 'Elevation View' : 'Normal View'}
                     </span>
                     <Switch 
                       checked={showElevationColors}
@@ -784,28 +808,28 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
                   </div>
                 </div>
                 
-                {/* 標高カラーの凡例 */}
+                {/* Elevation color legend */}
                 {showElevationColors && (
                   <div className="flex flex-wrap gap-2 mb-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-md">
                     <div className="flex items-center text-xs">
                       <div className="w-4 h-4 mr-1 rounded-sm" style={{ backgroundColor: "#FF4136" }}></div>
-                      <span>急な上り</span>
+                      <span>Steep Climb</span>
                     </div>
                     <div className="flex items-center text-xs">
                       <div className="w-4 h-4 mr-1 rounded-sm" style={{ backgroundColor: "#FF851B" }}></div>
-                      <span>緩やかな上り</span>
+                      <span>Moderate Climb</span>
                     </div>
                     <div className="flex items-center text-xs">
                       <div className="w-4 h-4 mr-1 rounded-sm" style={{ backgroundColor: "#2ECC40" }}></div>
-                      <span>ほぼ平坦</span>
+                      <span>Flat</span>
                     </div>
                     <div className="flex items-center text-xs">
                       <div className="w-4 h-4 mr-1 rounded-sm" style={{ backgroundColor: "#0074D9" }}></div>
-                      <span>緩やかな下り</span>
+                      <span>Moderate Descent</span>
                     </div>
                     <div className="flex items-center text-xs">
                       <div className="w-4 h-4 mr-1 rounded-sm" style={{ backgroundColor: "#B10DC9" }}></div>
-                      <span>急な下り</span>
+                      <span>Steep Descent</span>
                     </div>
                   </div>
                 )}
@@ -874,6 +898,9 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
                         />
                       )}
                       
+                      {/* Map Controller component */}
+                      <MapController points={mapPoints} />
+                      
                       {/* Start marker */}
                       {mapPoints.length > 0 && (
                         <Marker position={mapPoints[0]}>
@@ -888,23 +915,23 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
                         </Marker>
                       )}
                       
-                      {/* 距離マーカーを追加 */}
+                      {/* Distance markers */}
                       {(() => {
-                        // コース全体の距離を取得
+                        // Get total course distance
                         const totalDistance = elevationData.length > 0 ? elevationData[elevationData.length - 1].distance : 0;
                         
-                        // 距離間隔を決定（20km以下なら1kmごと、50kmまでは5kmごと、それ以上は10kmごと）
-                        let interval = 10; // デフォルト
+                        // Determine distance interval (1km for courses under 20km, 5km for under 50km, 10km for longer)
+                        let interval = 10; // Default
                         if (totalDistance <= 20) {
                           interval = 1;
                         } else if (totalDistance <= 50) {
                           interval = 5;
                         }
                         
-                        // マーカーを生成
+                        // Generate markers
                         const distanceMarkers = [];
                         for (let dist = interval; dist < totalDistance; dist += interval) {
-                          // 指定距離に最も近いポイントを見つける
+                          // Find the closest point to the specified distance
                           const closestPoint = elevationData.reduce((prev, curr) => {
                             return Math.abs(curr.distance - dist) < Math.abs(prev.distance - dist) ? curr : prev;
                           }, elevationData[0]);
