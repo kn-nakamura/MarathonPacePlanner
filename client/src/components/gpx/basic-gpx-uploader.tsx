@@ -81,11 +81,15 @@ const MapController = ({ points }: { points: LatLngExpression[] }) => {
       }
     }
     
-    // We don't need to add zoom control here since MapContainer has its own zoom control
-    // Just ensure map is properly centered and bounded
+    // Add zoom control - position it in the bottom right corner
+    const zoomControl = L.control.zoom({
+      position: 'bottomright'
+    });
+    map.zoomControl?.remove(); // Remove default zoom control
+    zoomControl.addTo(map);    // Add our custom positioned zoom control
     
     return () => {
-      // Clean up if needed
+      zoomControl.remove(); // Clean up when component unmounts
     };
   }, [map, points]);
   
@@ -836,7 +840,7 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
                       zoom={12} 
                       scrollWheelZoom={false} 
                       style={{ height: '100%', width: '100%' }}
-                      zoomControl={false}
+                      zoomControl={true}
                     >
                       <TileLayer
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
