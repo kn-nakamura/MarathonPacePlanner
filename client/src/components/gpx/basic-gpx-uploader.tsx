@@ -401,11 +401,6 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
       // Apply final pace adjustment (terrain only, splitStrategy is handled in the UI)
       const finalPaceAdjustment = paceAdjustment;
       
-      console.log(`Segment "${segment.name}" pace adjustment calculation:`, {
-        'Terrain Adjustment': paceAdjustment.toFixed(1) + " sec/km",
-        'Final Adjustment': finalPaceAdjustment.toFixed(1) + " sec/km"
-      });
-      
       // Apply pace adjustment - always start from target pace, not current custom pace
       const targetPaceSeconds = paceToSeconds(segment.targetPace);
       const adjustedPaceSeconds = Math.max(0, targetPaceSeconds + finalPaceAdjustment);
@@ -416,12 +411,6 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
       const minutes = Math.floor(segmentTimeMinutes);
       const seconds = Math.round((segmentTimeMinutes - minutes) * 60);
       const segmentTime = `${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
-      
-      console.log(`Segment "${segment.name}" pace adjustment:`, {
-        'Original Pace': segment.customPace,
-        'Adjusted Pace': adjustedPace,
-        'New Segment Time': segmentTime
-      });
       
       return {
         ...segment,
@@ -846,11 +835,7 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
               </div>
             </div>
             
-            <div className="flex justify-end mt-4">
-              <Button onClick={applyElevationToPacePlan} className="whitespace-nowrap">
-                Apply to Pace Plan
-              </Button>
-            </div>
+            {/* ボタン削除 - スライダーでリアルタイム適用 */}
           </div>
         </div>
       ) : (

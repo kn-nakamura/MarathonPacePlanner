@@ -51,20 +51,22 @@ export function HorizontalPaceChart({
     const paceValues = segments.map(segment => paceToSeconds(segment.customPace));
     const targetPaceValues = segments.map(segment => paceToSeconds(segment.targetPace));
     
-    let calculatedMinPace = Math.min(...paceValues) - 10; // 少し余裕を持たせる
-    let calculatedMaxPace = Math.max(...paceValues) + 10;
+    // 基本となるペース範囲を計算
+    let calculatedMinPace = Math.min(...paceValues);
+    let calculatedMaxPace = Math.max(...paceValues);
     
-    // すべてのペースが同じ場合（差が小さい場合）も、表示範囲を調整して見やすくする
+    // すべてのペースが同じ場合でも表示するための調整
     const paceRange = calculatedMaxPace - calculatedMinPace;
+    
     if (paceRange < 20) {
-      calculatedMinPace = calculatedMinPace - 30;
-      calculatedMaxPace = calculatedMaxPace + 30;
+      // すべてのペースがほぼ同じ場合、平均値を中心に範囲を設定
+      const avgPace = (calculatedMinPace + calculatedMaxPace) / 2;
+      calculatedMinPace = avgPace - 60; // 平均から-60秒
+      calculatedMaxPace = avgPace + 60; // 平均から+60秒
     } else {
-      // 表示レンジを拡張してグラフを中央に表示
-      // 最小値と最大値の差を計算
-      const adjustedRange = paceRange * 0.3; // 30%の余白
-      
-      // 一番遅いペースも一番速いペースも、少しオフセットしてバーを表示
+      // 一番遅いペースも一番速いペースも少しオフセットするため、
+      // 範囲の両端に余白を追加（30%ずつ）
+      const adjustedRange = paceRange * 0.3;
       calculatedMinPace = calculatedMinPace - adjustedRange;
       calculatedMaxPace = calculatedMaxPace + adjustedRange;
     }
