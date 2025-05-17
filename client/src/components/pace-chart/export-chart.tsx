@@ -3,7 +3,7 @@ import { toPng } from 'html-to-image';
 import { Segment } from '@/models/pace';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { PaceChart } from './pace-chart';
+import { HorizontalPaceChart } from './horizontal-pace-chart';
 
 interface ExportChartProps {
   segments: Segment[];
@@ -61,9 +61,8 @@ export function ExportChart({ segments, targetTime }: ExportChartProps) {
         className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700"
       >
         <h2 className="text-xl font-bold mb-4">Marathon Pace Distribution</h2>
-        <PaceChart 
+        <HorizontalPaceChart 
           segments={segments}
-          targetTime={targetTime}
           exportMode={true}
         />
       </div>
