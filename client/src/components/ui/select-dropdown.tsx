@@ -35,7 +35,7 @@ export function TimeSelectDropdowns({
           <SelectContent>
             {Array.from({ length: 7 }, (_, i) => (
               <SelectItem key={`hour-${i}`} value={String(i)}>
-                {i} hr
+                {i}
               </SelectItem>
             ))}
           </SelectContent>
