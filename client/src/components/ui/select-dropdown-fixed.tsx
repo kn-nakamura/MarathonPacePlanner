@@ -82,19 +82,19 @@ export function TimeSelectDropdowns({
 }
 
 // Pace Select Dropdowns Component for MM:SS format
-interface PaceDropdownProps {
+interface PaceSelectDropdownsProps {
   minutes: string;
   seconds: string;
   onChangeMinutes: (value: string) => void;
   onChangeSeconds: (value: string) => void;
 }
 
-export function PaceDropdown({
+export function PaceSelectDropdowns({
   minutes,
   seconds,
   onChangeMinutes,
   onChangeSeconds,
-}: PaceDropdownProps) {
+}: PaceSelectDropdownsProps) {
   return (
     <div className="flex items-center gap-2 justify-center">
       <div className="w-24">

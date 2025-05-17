@@ -12,7 +12,7 @@ import { PaceChart } from '@/components/pace-chart/pace-chart';
 import { PlanSummaryCard } from '@/components/result-summary/plan-summary-card';
 import { SavePlanCard } from '@/components/plan-table/save-plan-card';
 import { ExportSegmentTable } from '@/components/pace-chart/export-segment-table';
-import { TimeSelectDropdowns } from '@/components/ui/select-dropdown';
+import { TimeSelectDropdowns, PaceSelectDropdowns } from '@/components/ui/select-dropdown';
 import { DEFAULT_SEGMENTS, Segment, PacePlan, RaceDistance, RACE_DISTANCES, generateSegments } from '@/models/pace';
 import { usePaceConverter } from '@/hooks/use-pace-converter';
 import { formatTime, calculateTotalTime, calculateAveragePace, paceToSeconds, secondsToPace, calculateSegmentTime } from '@/utils/pace-utils';
