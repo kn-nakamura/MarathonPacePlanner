@@ -455,271 +455,182 @@ export default function Home() {
         </p>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
-        {/* Left Column */}
-        <div className="lg:col-span-8 space-y-6">
-          {/* Generator Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Create Pace Plan</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {/* Race Distance Selector */}
-              <div className="mb-6">
-                <Label htmlFor="race-distance" className="mb-2 block">Race Distance</Label>
-                <div className="flex items-center gap-4">
-                  <Select 
-                    value={raceDistance} 
-                    onValueChange={(value) => handleRaceDistanceChange(value as RaceDistance)}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Select Distance" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="5K">5K</SelectItem>
-                      <SelectItem value="10K">10K</SelectItem>
-                      <SelectItem value="Half">Half Marathon (21.1km)</SelectItem>
-                      <SelectItem value="Full">Marathon (42.2km)</SelectItem>
-                      <SelectItem value="Ultra">Ultra Marathon</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  
-                  {raceDistance === 'Ultra' && (
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="ultra-distance">Distance (km):</Label>
-                      <Input
-                        id="ultra-distance"
-                        type="number"
-                        min="50"
-                        max="200"
-                        value={ultraDistance}
-                        onChange={(e) => handleUltraDistanceChange(Number(e.target.value))}
-                        className="w-[100px]"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              {/* Input Mode Toggle */}
-              <div className="flex items-center mb-6 space-x-2">
-                <Switch 
-                  id="input-mode" 
-                  checked={averagePaceMode}
-                  onCheckedChange={toggleInputMode}
-                />
-                <Label htmlFor="input-mode">
-                  {averagePaceMode ? "Create from Average Pace" : "Create from Target Time"}
-                </Label>
-              </div>
-            
-              {averagePaceMode ? (
-                // 平均ペース入力
-                <div className="mb-6">
-                  <h2 className="text-2xl font-bold mb-4">Average Pace Input</h2>
-                  <PaceSelectDropdowns
-                    minutes={averagePaceInput.split(':')[0] || '4'}
-                    seconds={averagePaceInput.split(':')[1] || '00'}
-                    onChangeMinutes={(val) => {
-                      const seconds = averagePaceInput.split(':')[1] || '00';
-                      setAveragePaceInput(`${val}:${seconds}`);
-                    }}
-                    onChangeSeconds={(val) => {
-                      const minutes = averagePaceInput.split(':')[0] || '4';
-                      setAveragePaceInput(`${minutes}:${val}`);
-                    }}
-                  />
-                  <div className="flex justify-center mt-6">
-                    <Button onClick={generatePlan} className="w-full">
-                      Generate Pace Plan
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                // 目標タイム入力
-                <div className="mb-6">
-                  <h2 className="text-2xl font-bold mb-4">Target Marathon Time</h2>
-                  <div className="mb-6">
-                    <TimeSelectDropdowns
-                      hours={targetHours}
-                      minutes={targetMinutes}
-                      seconds={targetSeconds}
-                      onChangeHours={handleHoursChange}
-                      onChangeMinutes={handleMinutesChange}
-                      onChangeSeconds={handleSecondsChange}
+      {/* 単一カラムレイアウトに変更 */}
+      <div className="space-y-6">
+        {/* セグメントエディター */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Create Pace Plan</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {/* Race Distance Selector */}
+            <div className="mb-6">
+              <Label htmlFor="race-distance" className="mb-2 block">Race Distance</Label>
+              <div className="flex items-center gap-4">
+                <Select 
+                  value={raceDistance} 
+                  onValueChange={(value) => handleRaceDistanceChange(value as RaceDistance)}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select Distance" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5K">5K</SelectItem>
+                    <SelectItem value="10K">10K</SelectItem>
+                    <SelectItem value="Half">Half Marathon (21.1km)</SelectItem>
+                    <SelectItem value="Full">Marathon (42.2km)</SelectItem>
+                    <SelectItem value="Ultra">Ultra Marathon</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                {raceDistance === 'Ultra' && (
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="ultra-distance">Distance (km):</Label>
+                    <Input
+                      id="ultra-distance"
+                      type="number"
+                      min="50"
+                      max="200"
+                      value={ultraDistance}
+                      onChange={(e) => handleUltraDistanceChange(Number(e.target.value))}
+                      className="w-[100px]"
                     />
                   </div>
-                  <div className="flex justify-center mt-6">
-                    <Button onClick={generatePlan} className="w-full">
-                      Generate Pace Plan
-                    </Button>
-                  </div>
-                </div>
-              )}
-              
-              {/* Plan Summary */}
+                )}
+              </div>
+            </div>
+            
+            {/* Input Mode Toggle */}
+            <div className="flex items-center mb-6 space-x-2">
+              <Switch 
+                id="input-mode" 
+                checked={averagePaceMode}
+                onCheckedChange={toggleInputMode}
+              />
+              <Label htmlFor="input-mode">
+                {averagePaceMode ? "Create from Average Pace" : "Create from Target Time"}
+              </Label>
+            </div>
+          
+            {averagePaceMode ? (
+              // 平均ペース入力
               <div className="mb-6">
-                <PlanSummaryCard
-                  segments={segments}
-                  targetTime={targetTime}
-                  totalTime={totalTime}
-                  averagePace={averagePace}
+                <h2 className="text-2xl font-bold mb-4">Average Pace Input</h2>
+                <PaceSelectDropdowns
+                  minutes={averagePaceInput.split(':')[0] || '4'}
+                  seconds={averagePaceInput.split(':')[1] || '00'}
+                  onChangeMinutes={(val) => {
+                    const seconds = averagePaceInput.split(':')[1] || '00';
+                    setAveragePaceInput(`${val}:${seconds}`);
+                  }}
+                  onChangeSeconds={(val) => {
+                    const minutes = averagePaceInput.split(':')[0] || '4';
+                    setAveragePaceInput(`${minutes}:${val}`);
+                  }}
                 />
-              </div>
-              
-              {/* Segment Editor */}
-              <SegmentTable
-                segments={segments}
-                onUpdateSegment={handleUpdateSegment}
-                onUpdateRemainingSegments={handleUpdateRemainingSegments}
-                splitStrategy={{
-                  value: splitStrategy,
-                  onChange: setSplitStrategy
-                }}
-              />
-              
-              <div className="mt-4 flex justify-end">
-                <ExportSegmentTable
-                  segments={segments}
-                  targetTime={targetTime}
-                  totalTime={totalTime}
-                  averagePace={averagePace}
-                />
-              </div>
-            </CardContent>
-          </Card>
-          
-          {/* GPX Elevation Analysis */}
-          <Card>
-            <CardHeader>
-              <CardTitle>地形分析とペース最適化</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <BasicGpxUploader
-                segments={segments}
-                onUpdateSegments={setSegments}
-              />
-            </CardContent>
-          </Card>
-          
-          {/* Simple Save Button */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col gap-4">
-                <Input
-                  placeholder="Enter a name for your plan"
-                  value={planName}
-                  onChange={(e) => setPlanName(e.target.value)}
-                  className="w-full"
-                />
-                <div className="flex justify-end gap-2">
-                  <Button onClick={handleSavePlan}>Save Plan</Button>
+                <div className="flex justify-center mt-6">
+                  <Button onClick={generatePlan} className="w-full">
+                    Generate Pace Plan
+                  </Button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-        
-        {/* Right Column */}
-        <div className="lg:col-span-4 space-y-6">
-          {/* Pace Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Pace Distribution</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PaceChart 
+            ) : (
+              // 目標タイム入力
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold mb-4">Target Marathon Time</h2>
+                <div className="mb-6">
+                  <TimeSelectDropdowns
+                    hours={targetHours}
+                    minutes={targetMinutes}
+                    seconds={targetSeconds}
+                    onChangeHours={handleHoursChange}
+                    onChangeMinutes={handleMinutesChange}
+                    onChangeSeconds={handleSecondsChange}
+                  />
+                </div>
+                <div className="flex justify-center mt-6">
+                  <Button onClick={generatePlan} className="w-full">
+                    Generate Pace Plan
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {/* Plan Summary */}
+            <div className="mb-6">
+              <PlanSummaryCard
                 segments={segments}
                 targetTime={targetTime}
+                totalTime={totalTime}
+                averagePace={averagePace}
               />
-            </CardContent>
-          </Card>
-          
-          {/* Tips */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Running Strategy Tips</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg">
-                  <h4 className="font-medium text-blue-700 dark:text-blue-300 mb-2">
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="inline mr-2"
-                    >
-                      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path>
-                      <circle cx="12" cy="13" r="3"></circle>
-                    </svg>
-                    Race Pacing
-                  </h4>
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
-                    Run the first 10km slightly conservatively, maintain target pace through the middle, and increase pace in the final 7km if you have the energy.
-                  </p>
-                </div>
-                
-                <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded-lg">
-                  <h4 className="font-medium text-green-700 dark:text-green-300 mb-2">
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="inline mr-2"
-                    >
-                      <path d="M18 11.5V9a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v1.4"></path>
-                      <path d="M14 10V8a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"></path>
-                      <path d="M10 9.9V9a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v5"></path>
-                      <path d="M6 14v0a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path>
-                      <path d="M18 11v0a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-4a8 8 0 0 1-8-8 2 2 0 1 1 4 0"></path>
-                    </svg>
-                    Course Profile
-                  </h4>
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
-                    Adjust your pace strategy to match elevation changes - slow down on uphills, speed up slightly on downhills, and maintain consistent effort throughout.
-                  </p>
-                </div>
-                
-                <div className="bg-orange-50 dark:bg-orange-900/30 p-4 rounded-lg">
-                  <h4 className="font-medium text-orange-700 dark:text-orange-300 mb-2">
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="inline mr-2"
-                    >
-                      <path d="M12 12m-8 0a8 8 0 1 0 16 0a8 8 0 1 0 -16 0"></path>
-                      <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"></path>
-                    </svg>
-                    The Wall
-                  </h4>
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
-                    Plan a slightly slower pace during the 30-35km range where many runners hit "the wall" due to glycogen depletion. Proper fueling helps minimize this effect.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+            
+            {/* Segment Editor */}
+            <SegmentTable
+              segments={segments}
+              onUpdateSegment={handleUpdateSegment}
+              onUpdateRemainingSegments={handleUpdateRemainingSegments}
+              splitStrategy={{
+                value: splitStrategy,
+                onChange: setSplitStrategy
+              }}
+            />
+            
+            <div className="mt-4 flex justify-end">
+              <ExportSegmentTable
+                segments={segments}
+                targetTime={targetTime}
+                totalTime={totalTime}
+                averagePace={averagePace}
+              />
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* ペース分布グラフ - セグメントエディターの下に配置 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Pace Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PaceChart 
+              segments={segments}
+              targetTime={targetTime}
+            />
+          </CardContent>
+        </Card>
+        
+        {/* GPX Elevation Analysis - ペース分布グラフの下に配置 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Elevation Analysis</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <BasicGpxUploader
+              segments={segments}
+              onUpdateSegments={setSegments}
+            />
+          </CardContent>
+        </Card>
+        
+        {/* プラン保存 - 一番下に配置 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Save Your Plan</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-4">
+              <Input
+                placeholder="Enter a name for your plan"
+                value={planName}
+                onChange={(e) => setPlanName(e.target.value)}
+                className="w-full"
+              />
+              <Button onClick={handleSavePlan} className="w-full">Save Plan</Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
