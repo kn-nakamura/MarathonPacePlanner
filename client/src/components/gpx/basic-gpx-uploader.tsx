@@ -764,6 +764,46 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
                         </Marker>
                       )}
                       
+                      {/* 距離マーカーを追加 */}
+                      {(() => {
+                        // コース全体の距離を取得
+                        const totalDistance = elevationData.length > 0 ? elevationData[elevationData.length - 1].distance : 0;
+                        
+                        // 距離間隔を決定（20km以下なら1kmごと、50kmまでは5kmごと、それ以上は10kmごと）
+                        let interval = 10; // デフォルト
+                        if (totalDistance <= 20) {
+                          interval = 1;
+                        } else if (totalDistance <= 50) {
+                          interval = 5;
+                        }
+                        
+                        // マーカーを生成
+                        const distanceMarkers = [];
+                        for (let dist = interval; dist < totalDistance; dist += interval) {
+                          // 指定距離に最も近いポイントを見つける
+                          const closestPoint = elevationData.reduce((prev, curr) => {
+                            return Math.abs(curr.distance - dist) < Math.abs(prev.distance - dist) ? curr : prev;
+                          }, elevationData[0]);
+                          
+                          if (closestPoint.lat && closestPoint.lon) {
+                            distanceMarkers.push(
+                              <Marker 
+                                key={`dist-${dist}`} 
+                                position={[closestPoint.lat, closestPoint.lon]}
+                                icon={L.divIcon({
+                                  html: `<div class="bg-white px-1 py-0.5 rounded border border-blue-500 text-xs font-bold">${dist}km</div>`,
+                                  className: '',
+                                  iconSize: [30, 20],
+                                  iconAnchor: [15, 10]
+                                })}
+                              />
+                            );
+                          }
+                        }
+                        
+                        return distanceMarkers;
+                      })()}
+                      
                       <MapController points={mapPoints} />
                     </MapContainer>
                   ) : (
@@ -862,8 +902,56 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
                   value={[paceAdjustmentFactor]} 
                   onValueChange={(vals) => {
                     // スライダー値を更新した後、即座にペースプランに適用
-                    setPaceAdjustmentFactor(vals[0]);
-                    applyElevationToPacePlan();
+                    const newValue = vals[0];
+                    console.log(`Adjustment factor changed to ${newValue}`);
+                    
+                    // スライダー変更→ペース更新の処理を確実に行うため、setState後のコールバックを使用
+                    setPaceAdjustmentFactor(newValue);
+                    
+                    // 直接ここで関数を呼び出す
+                    if (newValue === 0) {
+                      // スライダーが0の場合、完全にリセット
+                      const resetSegments = segments.map(segment => {
+                        // 元のターゲットペースを使用
+                        const distanceMatch = segment.name.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
+                        const cleanName = segment.name.replace('km', '');
+                        const fallbackMatch = cleanName.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
+                        const match = distanceMatch || fallbackMatch;
+                        
+                        if (!match) return segment;
+                        
+                        const startDistance = parseFloat(match[1]);
+                        const endDistance = parseFloat(match[2]);
+                        const segmentDistance = endDistance - startDistance;
+                        
+                        // ターゲットペースから区間時間を計算
+                        const targetTime = segment.targetPace.replace('/km', '');
+                        const [min, sec] = targetTime.split(':').map(Number);
+                        const totalSeconds = min * 60 + sec;
+                        const segTimeSeconds = totalSeconds * segmentDistance;
+                        let segTimeMin = Math.floor(segTimeSeconds / 60);
+                        let segTimeSec = Math.round(segTimeSeconds % 60);
+                        
+                        // 秒数が60になった場合は分に繰り上げる
+                        if (segTimeSec === 60) {
+                          segTimeMin += 1;
+                          segTimeSec = 0;
+                        }
+                        
+                        const segmentTimeFormatted = `${segTimeMin}:${segTimeSec < 10 ? '0' + segTimeSec : segTimeSec}`;
+                        
+                        return {
+                          ...segment,
+                          customPace: segment.targetPace,
+                          segmentTime: segmentTimeFormatted
+                        };
+                      });
+                      
+                      onUpdateSegments(resetSegments);
+                    } else {
+                      // 通常の勾配調整
+                      applyElevationToPacePlan();
+                    }
                   }}
                   className="w-full"
                 />
