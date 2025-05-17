@@ -278,7 +278,7 @@ export function HorizontalPaceChart({
             <Bar 
               dataKey="pace" 
               name="Pace"
-              background={{ fill: '#eee' }}
+              background={{ fill: '#ff8833' }} // オレンジ色の背景
               label={(props) => {
                 const { x, y, width, height, value, index } = props;
                 const paceText = chartData[index].paceText;
@@ -298,7 +298,7 @@ export function HorizontalPaceChart({
               }}
             >
               {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.fill} />
+                <Cell key={`cell-${index}`} fill="#eee" />
               ))}
             </Bar>
           </BarChart>
