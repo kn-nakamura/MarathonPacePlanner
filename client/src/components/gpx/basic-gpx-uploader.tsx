@@ -96,6 +96,35 @@ const MapController = ({ points }: { points: LatLngExpression[] }) => {
   return null;
 };
 
+// PolyLineにマウスオーバー機能を追加するカスタムコンポーネント
+const InteractivePolylineSegment = ({ 
+  positions, 
+  color, 
+  weight,
+  index, 
+  onMouseOver, 
+  onMouseOut
+}: { 
+  positions: LatLngTuple[]; 
+  color: string; 
+  weight: number;
+  index: number; 
+  onMouseOver: (index: number) => void; 
+  onMouseOut: () => void;
+}) => {
+  return (
+    <Polyline 
+      positions={positions}
+      color={color}
+      weight={weight}
+      eventHandlers={{
+        mouseover: () => onMouseOver(index),
+        mouseout: () => onMouseOut()
+      }}
+    />
+  );
+};
+
 export function BasicGpxUploader(props: GPXUploaderProps) {
   const { segments, onUpdateSegments, gradientFactor = 0, onGradientFactorChange } = props;
   const [elevationData, setElevationData] = useState<ElevationPoint[]>([]);
@@ -812,11 +841,14 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
                           else color = "#B10DC9"; // 紫: 急な下り
                           
                           return (
-                            <Polyline 
+                            <InteractivePolylineSegment 
                               key={`elev-${index}`}
                               positions={[[prevPoint.lat!, prevPoint.lon!], [point.lat!, point.lon!]]}
                               color={color} 
                               weight={4}
+                              index={index}
+                              onMouseOver={(idx) => setHoveredPointIndex(idx)}
+                              onMouseOut={() => setHoveredPointIndex(null)}
                             />
                           );
                         })
@@ -826,6 +858,19 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
                           positions={mapPoints} 
                           color="#3B82F6" 
                           weight={3}
+                        />
+                      )}
+                      
+                      {/* ホバー位置のマーカー */}
+                      {hoveredMapPoint && (
+                        <Marker 
+                          position={hoveredMapPoint}
+                          icon={L.divIcon({
+                            html: `<div class="w-4 h-4 rounded-full bg-red-500 border-2 border-white shadow-md"></div>`,
+                            className: '',
+                            iconSize: [16, 16],
+                            iconAnchor: [8, 8]
+                          })}
                         />
                       )}
                       
