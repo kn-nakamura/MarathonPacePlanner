@@ -464,7 +464,7 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
     }
     
     // Show success message
-    alert("Pace plan updated based on terrain analysis and pacing strategy!");
+    // アラートメッセージを削除
   };
 
   const handleButtonClick = () => {
