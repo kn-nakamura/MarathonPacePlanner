@@ -16,6 +16,16 @@ export interface PacePlan {
   createdAt?: Date;
 }
 
+export interface SegmentAnalysis {
+  segmentName: string;
+  startDist: number;
+  endDist: number;
+  elevGain: number;
+  elevLoss: number;
+  gradient: number;
+  isUphill: boolean;
+}
+
 // Race distance types
 export type RaceDistance = '5K' | '10K' | 'Half' | 'Full' | 'Ultra';
 

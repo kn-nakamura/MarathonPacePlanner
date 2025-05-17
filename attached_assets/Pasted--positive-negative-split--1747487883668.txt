@@ -1,0 +1,128 @@
+両方の「スプリット戦略（positive/negative split）」と「勾配によるペース補正」を同時に反映させるには、“ベースペース” → “スプリット補正” → “勾配補正” の順で一連のパイプラインを通して計算するようにリファクタリングするのがいちばんシンプルで汎用的です。
+
+以下のように進めてみてください。
+
+⸻
+
+1. 「ベースセグメント」と「表示用セグメント」を分離する
+	1.	segments を常に「ベースペース（targetPace）＋距離情報だけ」の配列として保持。
+	2.	UI に渡す（＝編集・グラフ描画に使う）のは、「ベースセグメントを splitStrategy と gradientFactor に応じて変換した後のセグメント」。
+
+// new-home.tsx から抜粋
+
+// ベース段階のセグメント（distance, targetPace, name だけ保持）
+const [baseSegments, setBaseSegments] = useState<Segment[]>([...DEFAULT_SEGMENTS]);
+
+// UI に渡すDerived(派生)セグメント
+const displayedSegments = useMemo(() => {
+  return baseSegments.map((seg, idx) => {
+    const dist = parseFloat(seg.distance); // "5 km" → 5
+    const basePaceSec = paceToSeconds(seg.targetPace);
+    // 1) スプリット補正
+    const position = idx / (baseSegments.length - 1);
+    const splitAdjSec = (position - 0.5) * 2 * splitStrategy * basePaceSec * 0.002;
+    const paceAfterSplit = basePaceSec + splitAdjSec;
+    // 2) 勾配補正（gradientFactor は 0～1 の値）
+    //    applyElevationData で計算した勾配情報を別途持っている想定
+    const gradInfo = segmentAnalysis.find(a => a.segmentName === seg.name);
+    let gradAdj = 0;
+    if (gradInfo && gradientFactor > 0) {
+      // 例：10 秒／km × gradientFactor
+      gradAdj = calculateGradientAdjustment(gradInfo) * gradientFactor;
+    }
+    const finalPaceSec = Math.max(1, paceAfterSplit + gradAdj);
+
+    return {
+      ...seg,
+      customPace: secondsToPace(finalPaceSec),
+      segmentTime: calculateSegmentTime(secondsToPace(finalPaceSec), dist)
+    };
+  });
+}, [baseSegments, splitStrategy, gradientFactor, segmentAnalysis]);
+
+	•	baseSegments にはユーザーが手動でカスタマイズしたいときだけ更新（onUpdateSegment／onUpdateRemainingSegments）してください。
+	•	displayedSegments は React の useMemo や useEffect の中で自動的に再計算。UI にはこの displayedSegments を渡します。
+
+⸻
+
+2. BasicGpxUploader 側の勾配情報を抜き出す
+
+今の実装では segmentAnalysis を内部 state に持っているので、これを new-home に渡せるようにプロップスを追加します。
+
+// new-home.tsx
+- <BasicGpxUploader
+-   segments={segments}
+-   onUpdateSegments={setSegments}
+- />
++ <BasicGpxUploader
++   segments={baseSegments}
++   onBaseSegmentsChange={setBaseSegments}
++   onSegmentAnalysisReady={setSegmentAnalysis}  // ← ここで勾配情報を受け取る
++ />
+
+// BasicGpxUploader.tsx
+interface GPXUploaderProps {
+  segments: Segment[];
+  onBaseSegmentsChange: (base: Segment[]) => void;
+  onSegmentAnalysisReady: (analysis: SegmentAnalysis[]) => void;
+}
+
+// 解析後
+setSegmentAnalysis(segmentAnalysisData);
+props.onSegmentAnalysisReady(segmentAnalysisData);
+
+
+⸻
+
+3. UI 側（new-home）で displayedSegments を使う
+
+<SegmentTable
+  segments={displayedSegments}
+  onUpdateSegment={(i, seg) => {
+    // seg.customPace が変わったら、baseSegments の targetPace に反映しておく
+    const newBase = [...baseSegments];
+    newBase[i] = { ...newBase[i], targetPace: seg.customPace };
+    setBaseSegments(newBase);
+  }}
+  onUpdateRemainingSegments={(start, pace) => {
+    const newBase = baseSegments.map((b, idx) => {
+      if (idx >= start) return { ...b, targetPace: pace };
+      return b;
+    });
+    setBaseSegments(newBase);
+  }}
+  splitStrategy={{ value: splitStrategy, onChange: setSplitStrategy }}
+/>
+<HorizontalPaceChart segments={displayedSegments} />
+<ExportSegmentTable segments={displayedSegments} /*…*/ />
+
+
+⸻
+
+4. 勾配補正ロジック例
+
+function calculateGradientAdjustment(info: {
+  gradient: number; elevGain: number; elevLoss: number;
+}): number {
+  // 例：勾配率⼤ → +30／km、緩やか→ +10／km、下りは -8~ -15
+  if (info.gradient > 4) return 30;
+  if (info.gradient > 2) return 20;
+  if (info.gradient > 0.5) return 10;
+  if (info.gradient < -4) return -15;
+  if (info.gradient < -2) return -8;
+  return 0;
+}
+
+
+⸻
+
+まとめ
+	1.	baseSegments を「純粋なターゲットペース＋距離」のみで管理
+	2.	splitStrategy と gradientFactor、segmentAnalysis をまとめて使い、一箇所で「ベース → スプリット補正 → 勾配補正 → final customPace／segmentTime」を計算する
+	3.	UI からは常に「派生済みの displayedSegments」を参照
+
+このリファクタリングにより、
+	•	スプリットも勾配補正も常に同時に反映される
+	•	どちらか片方をいじってももう片方が「上書き」されなくなる
+
+はずです。ぜひお試しください！
