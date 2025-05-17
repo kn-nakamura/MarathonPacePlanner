@@ -27,6 +27,8 @@ interface GPXUploaderProps {
   segments: Segment[];
   onUpdateSegments: (segments: Segment[]) => void;
   onSegmentAnalysisReady?: (analysis: SegmentAnalysis[]) => void;
+  gradientFactor?: number;
+  onGradientFactorChange?: (value: number) => void;
 }
 
 interface ElevationPoint {
@@ -94,7 +96,7 @@ const MapController = ({ points }: { points: LatLngExpression[] }) => {
 };
 
 export function BasicGpxUploader(props: GPXUploaderProps) {
-  const { segments, onUpdateSegments } = props;
+  const { segments, onUpdateSegments, gradientFactor = 0, onGradientFactorChange } = props;
   const [elevationData, setElevationData] = useState<ElevationPoint[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -110,7 +112,8 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
     gradient: number;
     isUphill: boolean;
   }[]>([]);
-  const [gradientFactor, setGradientFactor] = useState<number>(0.0); // 0.0 = no gradient adjustment by default
+  // 親コンポーネントから渡される値を使用するため内部のステートは不要
+  // gradientFactorとそのsetter関数はpropsから取得
   const [pacingStrategyFactor, setPacingStrategyFactor] = useState<number>(0.0); // 0.0 = no pacing strategy adjustment
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
