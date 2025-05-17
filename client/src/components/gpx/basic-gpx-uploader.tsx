@@ -848,21 +848,21 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
                       />
                       
                       {showElevationColors ? (
-                        // 標高に基づいた色付きのセグメント
+                        // Colored segments based on elevation
                         elevationData.length > 1 && elevationData.map((point, index) => {
                           if (index === 0) return null;
                           
-                          // 標高の変化に基づいて色を決定
+                          // Determine color based on elevation change
                           const prevPoint = elevationData[index - 1];
                           const elevDiff = point.elevation - prevPoint.elevation;
                           
-                          // 色のグラデーション: 赤(上り急) -> オレンジ(上り) -> 緑(平坦) -> 青(下り) -> 紫(下り急)
+                          // Color gradient: Red (steep climb) -> Orange (moderate climb) -> Green (flat) -> Blue (moderate descent) -> Purple (steep descent)
                           let color;
-                          if (elevDiff > 10) color = "#FF4136"; // 赤: 急な上り
-                          else if (elevDiff > 0) color = "#FF851B"; // オレンジ: 緩やかな上り
-                          else if (elevDiff > -10) color = "#2ECC40"; // 緑: ほぼ平坦
-                          else if (elevDiff > -20) color = "#0074D9"; // 青: 緩やかな下り
-                          else color = "#B10DC9"; // 紫: 急な下り
+                          if (elevDiff > 10) color = "#FF4136"; // Red: Steep climb
+                          else if (elevDiff > 0) color = "#FF851B"; // Orange: Moderate climb
+                          else if (elevDiff > -10) color = "#2ECC40"; // Green: Flat
+                          else if (elevDiff > -20) color = "#0074D9"; // Blue: Moderate descent
+                          else color = "#B10DC9"; // Purple: Steep descent
                           
                           return (
                             <InteractivePolylineSegment 
@@ -885,15 +885,23 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
                         />
                       )}
                       
-                      {/* ホバー位置のマーカー */}
-                      {hoveredMapPoint && (
+                      {/* Hover position marker with elevation info */}
+                      {hoveredMapPoint && hoveredPointIndex !== null && (
                         <Marker 
                           position={hoveredMapPoint}
                           icon={L.divIcon({
-                            html: `<div class="w-4 h-4 rounded-full bg-red-500 border-2 border-white shadow-md"></div>`,
+                            html: `
+                              <div class="relative">
+                                <div class="w-6 h-6 rounded-full bg-red-500 border-2 border-white shadow-md pulse-animation"></div>
+                                <div class="absolute top-[-40px] left-[-40px] bg-black bg-opacity-75 text-white px-2 py-1 rounded text-xs min-w-[100px] text-center">
+                                  ${Math.round(elevationData[hoveredPointIndex].distance * 10) / 10}km | 
+                                  ${Math.round(elevationData[hoveredPointIndex].elevation)}m
+                                </div>
+                              </div>
+                            `,
                             className: '',
-                            iconSize: [16, 16],
-                            iconAnchor: [8, 8]
+                            iconSize: [40, 40],
+                            iconAnchor: [20, 20]
                           })}
                         />
                       )}
@@ -937,16 +945,30 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
                           }, elevationData[0]);
                           
                           if (closestPoint.lat && closestPoint.lon) {
+                            // Create clearer distance markers with km labels removed
                             distanceMarkers.push(
                               <Marker 
                                 key={`dist-${dist}`} 
                                 position={[closestPoint.lat, closestPoint.lon]}
                                 icon={L.divIcon({
-                                  html: `<div class="bg-white px-1 py-0.5 rounded border border-blue-500 text-xs font-bold">${dist}</div>`,
+                                  html: `<div class="bg-white px-2 py-1 rounded-full border-2 border-blue-500 text-xs font-bold shadow-md">${Math.round(dist)}</div>`,
                                   className: '',
-                                  iconSize: [30, 20],
-                                  iconAnchor: [15, 10]
+                                  iconSize: [32, 24],
+                                  iconAnchor: [16, 12]
                                 })}
+                                eventHandlers={{
+                                  mouseover: () => {
+                                    // Find index of this point in elevation data
+                                    const pointIndex = elevationData.findIndex(p => 
+                                      p.lat === closestPoint.lat && p.lon === closestPoint.lon);
+                                    if (pointIndex !== -1) {
+                                      setHoveredPointIndex(pointIndex);
+                                    }
+                                  },
+                                  mouseout: () => {
+                                    setHoveredPointIndex(null);
+                                  }
+                                }}
                               />
                             );
                           }
