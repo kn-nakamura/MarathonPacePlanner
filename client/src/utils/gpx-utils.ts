@@ -1,5 +1,5 @@
-// @ts-ignore
-const GpxParser = require('gpxparser');
+// 独自のGPXパーサーを使用
+import { parseGPX } from './gpx-parser';
 
 export interface ElevationPoint {
   distance: number;  // km
@@ -31,10 +31,13 @@ export interface GPXData {
 
 // GPXファイルを解析して標高データを抽出する
 export const parseGPXFile = (gpxContent: string): GPXData => {
-  const gpx = new GpxParser();
-  gpx.parse(gpxContent);
+  // 独自のGPXパーサーを使用
+  const gpx = parseGPX(gpxContent);
   
-  const track = gpx.tracks[0];
+  // Console.log for debugging
+  console.log("GPX parsed:", gpx);
+  
+  const track = gpx.tracks && gpx.tracks[0];
   if (!track || !track.points || track.points.length === 0) {
     throw new Error('GPXファイルにトラックデータがありません');
   }
