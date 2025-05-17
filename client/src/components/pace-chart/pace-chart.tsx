@@ -183,8 +183,11 @@ export function PaceChart({ segments, targetTime, exportMode = false, height = 3
               label={{ 
                 value: 'Distance', 
                 position: 'insideBottomRight', 
-                offset: -10 
-              }} 
+                offset: -10,
+                style: { fontSize: isMobile ? 10 : 12 }
+              }}
+              tick={{ fontSize: isMobile ? 8 : 10 }}
+              interval={0} // 全てのデータポイントを表示
             />
             <YAxis 
               label={{ 
@@ -193,17 +196,18 @@ export function PaceChart({ segments, targetTime, exportMode = false, height = 3
                 position: 'insideLeft',
                 style: { 
                   textAnchor: 'middle',
-                  fontSize: isMobile ? 10 : 12,
+                  fontSize: isMobile ? 8 : 10,
                   fill: document.documentElement.classList.contains('dark') ? '#d1d5db' : '#4b5563'
                 }
               }}
               domain={[minPaceValue, maxPaceValue]}
               // Invert the axis so lower pace (faster) is higher on the chart
               reversed
-              tickCount={isMobile ? 4 : 6}
+              ticks={[4*60, 4*60+30, 5*60, 5*60+30, 6*60]} // 30秒単位の目盛り
+              tick={{ fontSize: isMobile ? 8 : 10 }}
               tickFormatter={(value) => {
                 const min = Math.floor(value / 60);
-                const sec = Math.round(value % 60);
+                const sec = Math.floor(value % 60); // roundではなくfloorに変更
                 return `${min}:${sec.toString().padStart(2, '0')}`;
               }}
             />
