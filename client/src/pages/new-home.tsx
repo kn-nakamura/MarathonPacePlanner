@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, ChangeEvent } from 'react';
+import { useState, useEffect, useRef, useCallback, ChangeEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import { PlanSummaryCard } from '@/components/result-summary/plan-summary-card';
 import { ExportSegmentTable } from '@/components/pace-chart/export-segment-table';
 import { ExportChart } from '@/components/pace-chart/export-chart';
 import { TimeSelectDropdowns, PaceSelectDropdowns } from '@/components/ui/select-dropdown';
-import { DEFAULT_SEGMENTS, Segment, PacePlan, RaceDistance, RACE_DISTANCES, generateSegments } from '@/models/pace';
+import { DEFAULT_SEGMENTS, Segment, PacePlan, RaceDistance, RACE_DISTANCES, generateSegments, SegmentAnalysis } from '@/models/pace';
 import { usePaceConverter } from '@/hooks/use-pace-converter';
 import { formatTime, calculateTotalTime, calculateAveragePace, paceToSeconds, secondsToPace, calculateSegmentTime } from '@/utils/pace-utils';
 import { apiRequest } from '@/lib/queryClient';
@@ -26,53 +26,80 @@ export default function Home() {
   const [targetHours, setTargetHours] = useState<string>("3");
   const [targetMinutes, setTargetMinutes] = useState<string>("30");
   const [targetSeconds, setTargetSeconds] = useState<string>("00");
-  const [segments, setSegments] = useState<Segment[]>([...DEFAULT_SEGMENTS]);
+  // ベースとなるセグメント（ターゲットペースと距離情報のみ）
+  const [baseSegments, setBaseSegments] = useState<Segment[]>([...DEFAULT_SEGMENTS]);
+  // 表示用の派生セグメント（UI表示やエクスポート用）
+  const [displaySegments, setDisplaySegments] = useState<Segment[]>([...DEFAULT_SEGMENTS]);
   const [planName, setPlanName] = useState<string>("");
   const [raceDistance, setRaceDistance] = useState<RaceDistance>("Full");
   const [ultraDistance, setUltraDistance] = useState<number>(100);
   const [splitStrategy, setSplitStrategy] = useState<number>(0); // 0 = even pace, negative = negative split, positive = positive split
+  const [segmentAnalysis, setSegmentAnalysis] = useState<SegmentAnalysis[]>([]);
+  const [gradientFactor, setGradientFactor] = useState<number>(0); // 0 = no effect, 1 = full effect
   
-  // スプリット戦略を適用する効果
-  useEffect(() => {
-    // スプリット戦略が変更されたときにリアルタイムでペースを調整
-    if (segments.length === 0) return;
+  // Derive表示用セグメントを計算する関数
+  const calculateDisplaySegments = useCallback(() => {
+    if (baseSegments.length === 0) return;
     
-    const updatedSegments = segments.map((segment, index) => {
-      // レース内の相対位置（0から1）
-      const position = index / (segments.length - 1);
+    const calculatedSegments = baseSegments.map((segment, index) => {
+      // 基本情報の取得
+      const position = index / (baseSegments.length - 1);
+      const adjustment = (position - 0.5) * 2; // -1.0から1.0の範囲
+      const distanceNum = parseFloat(segment.distance);
       
-      // スプリット調整量（-1.0から1.0）に変換、中央が0
-      const adjustment = (position - 0.5) * 2;
+      // 1. ベースペースを秒に変換
+      const basePaceSec = paceToSeconds(segment.targetPace);
       
-      // ペースを分:秒形式から秒に変換
-      const paceStr = segment.targetPace.replace('/km', '');
-      const [paceMin, paceSec] = paceStr.split(':').map(Number);
-      const paceInSeconds = (paceMin * 60) + paceSec;
+      // 2. スプリット戦略による調整
+      const splitAdjSec = (adjustment * splitStrategy * basePaceSec * 0.002);
+      const paceAfterSplit = basePaceSec + splitAdjSec;
       
-      // スプリット戦略による調整（マイナス値=後半速く、プラス値=前半速く）
-      // 調整方向を反転（ポジティブスプリットは前半が遅い＝前半のペース秒数が大きい）
-      const adjustmentInSeconds = (adjustment * splitStrategy * paceInSeconds * 0.002);
+      // 3. 勾配による調整（勾配情報が利用可能な場合）
+      let gradientAdjSec = 0;
+      const segAnalysis = segmentAnalysis.find(a => a.segmentName === segment.name);
       
-      // 調整したペースを秒から分:秒形式に戻す
-      const newPaceInSeconds = Math.max(1, paceInSeconds + adjustmentInSeconds);
-      const newPaceMin = Math.floor(newPaceInSeconds / 60);
-      const newPaceSec = Math.round(newPaceInSeconds % 60);
+      if (segAnalysis && gradientFactor > 0) {
+        // 勾配に基づくペース調整を計算
+        gradientAdjSec = calculateGradientAdjustment(segAnalysis) * gradientFactor;
+      }
       
-      const adjustedPace = `${newPaceMin}:${newPaceSec < 10 ? '0' + newPaceSec : newPaceSec}/km`;
+      // 4. 最終ペースの計算
+      const finalPaceSec = Math.max(1, paceAfterSplit + gradientAdjSec);
+      const finalPace = secondsToPace(finalPaceSec);
       
-      // セグメント時間も再計算 - calculateTimeではなくcalculateSegmentTimeを使用
-      const distance = parseFloat(segment.distance.split(' ')[0]);
-      const segmentTime = calculateSegmentTime(adjustedPace, distance);
+      // 5. セグメント時間の計算
+      const segTime = calculateSegmentTime(finalPace, distanceNum);
       
       return {
         ...segment,
-        customPace: adjustedPace,
-        segmentTime
+        customPace: finalPace,
+        segmentTime: segTime
       };
     });
     
-    setSegments(updatedSegments);
-  }, [splitStrategy]);
+    setDisplaySegments(calculatedSegments);
+  }, [baseSegments, splitStrategy, gradientFactor, segmentAnalysis]);
+  
+  // セグメント変更時またはファクター変更時に表示用セグメントを再計算
+  useEffect(() => {
+    calculateDisplaySegments();
+  }, [baseSegments, splitStrategy, gradientFactor, calculateDisplaySegments]);
+  
+  // 勾配に基づくペース調整を計算する関数
+  const calculateGradientAdjustment = (info: SegmentAnalysis): number => {
+    if (info.gradient > 4 || (info.gradient > 2 && info.elevGain > 100)) {
+      return 30; // +30 sec/km for steep uphills
+    } else if (info.gradient > 2 || (info.gradient > 1 && info.elevGain > 80)) {
+      return 20; // +20 sec/km for moderate uphills
+    } else if (info.gradient > 0.5 || (info.gradient > 0 && info.elevGain > 50)) {
+      return 10; // +10 sec/km for gentle uphills
+    } else if (info.gradient < -4 || (info.gradient < -2 && info.elevLoss > 100)) {
+      return -15; // -15 sec/km for steep downhills
+    } else if (info.gradient < -2) {
+      return -8; // -8 sec/km for moderate downhills
+    }
+    return 0;
+  };
   const { calculatePace, calculateTime } = usePaceConverter();
   const { toast } = useToast();
   
@@ -145,15 +172,15 @@ export default function Home() {
   const [totalTime, setTotalTime] = useState<string>("");
   const [averagePace, setAveragePace] = useState<string>("");
   
-  // セグメントが変更されたときに合計時間と平均ペースを再計算
+  // 表示用セグメントが変更されたときに合計時間と平均ペースを再計算
   useEffect(() => {
-    const newTotalTime = calculateTotalTime(segments);
+    const newTotalTime = calculateTotalTime(displaySegments);
     const distanceValue = raceDistance === 'Ultra' ? ultraDistance : RACE_DISTANCES[raceDistance];
     const newAveragePace = calculateAveragePace(newTotalTime, distanceValue);
     
     setTotalTime(newTotalTime);
     setAveragePace(newAveragePace);
-  }, [segments, raceDistance, ultraDistance]);
+  }, [displaySegments, raceDistance, ultraDistance]);
 
   // 平均ペース入力用
   const [averagePaceInput, setAveragePaceInput] = useState<string>("");
@@ -201,7 +228,7 @@ export default function Home() {
     
     // Generate new segments based on selected race distance
     const newSegments = generateSegments(newDistance, newDistance === 'Ultra' ? ultraDistance : undefined);
-    setSegments(newSegments);
+    setBaseSegments(newSegments);
     
     // Adjust target time based on new distance
     updateTargetTimeForDistance(newDistance);
@@ -213,7 +240,7 @@ export default function Home() {
     if (raceDistance === 'Ultra') {
       // Regenerate segments for ultra with new distance
       const newSegments = generateSegments('Ultra', newDistance);
-      setSegments(newSegments);
+      setBaseSegments(newSegments);
     }
   };
   
@@ -374,15 +401,15 @@ export default function Home() {
     });
   };
   
-  // Update segment data
+  // Update segment data - ベースセグメントを更新（表示用セグメントは自動的に再計算される）
   const handleUpdateSegment = (index: number, updatedSegment: Segment) => {
-    const newSegments = [...segments];
-    newSegments[index] = {
-      ...updatedSegment,
-      segmentTime: calculateSegmentTime(updatedSegment.customPace, 
-        parseFloat(updatedSegment.distance.split(' ')[0])) // 実際のセグメント距離を使う
+    const newBaseSegments = [...baseSegments];
+    // カスタムペースがターゲットペースにもなる
+    newBaseSegments[index] = {
+      ...baseSegments[index],
+      targetPace: updatedSegment.customPace,
     };
-    setSegments(newSegments);
+    setBaseSegments(newBaseSegments);
   };
   
   // Update pace for all remaining segments
@@ -559,7 +586,7 @@ export default function Home() {
             {/* Plan Summary */}
             <div className="mb-6">
               <PlanSummaryCard
-                segments={segments}
+                segments={displaySegments}
                 targetTime={targetTime}
                 totalTime={totalTime}
                 averagePace={averagePace}
@@ -568,7 +595,7 @@ export default function Home() {
             
             {/* Segment Editor */}
             <SegmentTable
-              segments={segments}
+              segments={displaySegments}
               onUpdateSegment={handleUpdateSegment}
               onUpdateRemainingSegments={handleUpdateRemainingSegments}
               splitStrategy={{
@@ -595,7 +622,7 @@ export default function Home() {
           </CardHeader>
           <CardContent>
             <HorizontalPaceChart 
-              segments={segments}
+              segments={displaySegments}
             />
           </CardContent>
         </Card>
@@ -607,8 +634,9 @@ export default function Home() {
           </CardHeader>
           <CardContent>
             <BasicGpxUploader
-              segments={segments}
-              onUpdateSegments={setSegments}
+              segments={baseSegments}
+              onUpdateSegments={setBaseSegments}
+              onSegmentAnalysisReady={setSegmentAnalysis}
             />
           </CardContent>
         </Card>

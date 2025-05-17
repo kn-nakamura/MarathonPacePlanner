@@ -19,13 +19,14 @@ import {
 import { MapContainer, TileLayer, Polyline, Popup, Marker, useMap } from 'react-leaflet';
 import L, { LatLngTuple, LatLngExpression } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Segment } from '@/models/pace';
+import { Segment, SegmentAnalysis } from '@/models/pace';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { paceToSeconds, secondsToPace, calculateTotalTime } from '@/utils/pace-utils';
 
 interface GPXUploaderProps {
   segments: Segment[];
   onUpdateSegments: (segments: Segment[]) => void;
+  onSegmentAnalysisReady?: (analysis: SegmentAnalysis[]) => void;
 }
 
 interface ElevationPoint {
@@ -92,7 +93,8 @@ const MapController = ({ points }: { points: LatLngExpression[] }) => {
   return null;
 };
 
-export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProps) {
+export function BasicGpxUploader(props: GPXUploaderProps) {
+  const { segments, onUpdateSegments } = props;
   const [elevationData, setElevationData] = useState<ElevationPoint[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -314,6 +316,11 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
     }[];
     
     setSegmentAnalysis(segmentAnalysisData);
+    
+    // 親コンポーネントに分析結果を共有する
+    if (props.onSegmentAnalysisReady) {
+      props.onSegmentAnalysisReady(segmentAnalysisData);
+    }
   };
   
   // Apply elevation-based pace adjustments - リアルタイムで適用される
