@@ -1,10 +1,14 @@
 import { Link } from 'wouter';
 import { Facebook, Instagram, Twitter, Github } from 'lucide-react';
+import { BMCButton } from '../BMCButton';
 
 export default function Footer() {
   return (
     <footer className="bg-gray-100 dark:bg-gray-800 py-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Buy Me a Coffee ボタン */}
+        <BMCButton />
+        
         <div className="md:flex md:items-center md:justify-between">
           <div className="flex justify-center md:justify-start space-x-6">
             <a 
