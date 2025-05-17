@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SegmentTable } from '@/components/plan-table/segment-table';
-import { PaceChart } from '@/components/pace-chart/pace-chart';
+import { HorizontalPaceChart } from '@/components/pace-chart/horizontal-pace-chart';
 import { PlanSummaryCard } from '@/components/result-summary/plan-summary-card';
 import { ExportSegmentTable } from '@/components/pace-chart/export-segment-table';
 import { ExportChart } from '@/components/pace-chart/export-chart';
@@ -594,9 +594,8 @@ export default function Home() {
             <CardTitle>Pace Distribution</CardTitle>
           </CardHeader>
           <CardContent>
-            <PaceChart 
+            <HorizontalPaceChart 
               segments={segments}
-              targetTime={targetTime}
             />
           </CardContent>
         </Card>
@@ -614,23 +613,7 @@ export default function Home() {
           </CardContent>
         </Card>
         
-        {/* プラン保存 - 一番下に配置 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Save Your Plan</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-4">
-              <Input
-                placeholder="Enter a name for your plan"
-                value={planName}
-                onChange={(e) => setPlanName(e.target.value)}
-                className="w-full"
-              />
-              <Button onClick={handleSavePlan} className="w-full">Save Plan</Button>
-            </div>
-          </CardContent>
-        </Card>
+
       </div>
     </div>
   );
