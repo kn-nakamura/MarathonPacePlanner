@@ -12,14 +12,19 @@ import { Segment } from "@/models/pace";
 import { calculateCumulativeTimes } from "@/utils/pace-utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { PaceDropdown } from "@/components/ui/select-dropdown";
+import { Slider } from "@/components/ui/slider";
 
 interface SegmentTableProps {
   segments: Segment[];
   onUpdateSegment: (index: number, segment: Segment) => void;
   onUpdateRemainingSegments: (startIndex: number, pace: string) => void;
+  splitStrategy?: {
+    value: number;
+    onChange: (value: number) => void;
+  };
 }
 
-export function SegmentTable({ segments, onUpdateSegment, onUpdateRemainingSegments }: SegmentTableProps) {
+export function SegmentTable({ segments, onUpdateSegment, onUpdateRemainingSegments, splitStrategy }: SegmentTableProps) {
   const [cumulativeTimes, setCumulativeTimes] = useState<string[]>([]);
   const isMobile = useIsMobile();
   
@@ -44,6 +49,34 @@ export function SegmentTable({ segments, onUpdateSegment, onUpdateRemainingSegme
         <p className="text-xs text-muted-foreground mt-1">
           Adjust each segment's pace using the dropdown selectors
         </p>
+        
+        {splitStrategy && (
+          <div className="mt-4 space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Pacing Strategy</span>
+              <span className="text-sm text-gray-500">
+                {splitStrategy.value < 0 
+                  ? `Negative Split (${Math.abs(splitStrategy.value)}%)` 
+                  : splitStrategy.value > 0 
+                    ? `Positive Split (${splitStrategy.value}%)` 
+                    : 'Even Pace'}
+              </span>
+            </div>
+            <Slider 
+              min={-50} 
+              max={50} 
+              step={5}
+              value={[splitStrategy.value]} 
+              onValueChange={(vals) => splitStrategy.onChange(vals[0])}
+              className="w-full"
+            />
+            <div className="flex justify-between mt-1 text-xs text-gray-500">
+              <span>Faster Finish</span>
+              <span>Even</span>
+              <span>Faster Start</span>
+            </div>
+          </div>
+        )}
       </div>
       
       <div className="overflow-x-auto">
