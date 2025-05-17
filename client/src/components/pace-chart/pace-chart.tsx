@@ -196,8 +196,8 @@ export function PaceChart({ segments, targetTime, exportMode = false, height = 3
             data={chartData}
             margin={{
               top: 10,
-              right: 5,
-              left: 0,
+              right: 40, // 右側の余白を増やして単位表示が切れないように
+              left: 10,  // 左側の余白を小さく
               bottom: 30,
             }}
           >
@@ -240,7 +240,8 @@ export function PaceChart({ segments, targetTime, exportMode = false, height = 3
                 style: { 
                   textAnchor: 'middle',
                   fontSize: isMobile ? 8 : 10,
-                  fill: document.documentElement.classList.contains('dark') ? '#d1d5db' : '#4b5563'
+                  fill: document.documentElement.classList.contains('dark') ? '#d1d5db' : '#4b5563',
+                  dy: '-0.5em' // ラベルの位置を微調整
                 }
               }}
               domain={[minPaceValue, maxPaceValue]}
