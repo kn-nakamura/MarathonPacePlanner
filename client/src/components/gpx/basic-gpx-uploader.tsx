@@ -315,9 +315,12 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
     setSegmentAnalysis(segmentAnalysisData);
   };
   
-  // Apply elevation-based pace adjustments
+  // Apply elevation-based pace adjustments - リアルタイムで適用される
   const applyElevationToPacePlan = () => {
     if (elevationData.length === 0 || segments.length === 0) return;
+    
+    // 元のペースを利用するために、ターゲットペースを使用
+    // 係数が0の場合は元のペース（ターゲットペース）に戻すため
     
     // Get original target time and total distance for reference
     const originalTotalTime = calculateTotalTime(segments);
@@ -374,6 +377,16 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
         });
       }
       
+      // スライダーが0の場合は元のターゲットペースに戻す
+      if (paceAdjustmentFactor === 0) {
+        // ターゲットペースを使用（元のペース）
+        return {
+          ...segment,
+          customPace: segment.targetPace,
+          segmentTime: calculateSegmentTime(segment.targetPace, segmentDistance)
+        };
+      }
+      
       // Apply adjustment intensity factor (from slider)
       paceAdjustment = paceAdjustment * paceAdjustmentFactor;
       
@@ -385,9 +398,9 @@ export function BasicGpxUploader({ segments, onUpdateSegments }: GPXUploaderProp
         'Final Adjustment': finalPaceAdjustment.toFixed(1) + " sec/km"
       });
       
-      // Apply pace adjustment
-      const currentPaceSeconds = paceToSeconds(segment.customPace);
-      const adjustedPaceSeconds = Math.max(0, currentPaceSeconds + finalPaceAdjustment);
+      // Apply pace adjustment - always start from target pace, not current custom pace
+      const targetPaceSeconds = paceToSeconds(segment.targetPace);
+      const adjustedPaceSeconds = Math.max(0, targetPaceSeconds + finalPaceAdjustment);
       const adjustedPace = secondsToPace(adjustedPaceSeconds);
       
       // Calculate new segment time

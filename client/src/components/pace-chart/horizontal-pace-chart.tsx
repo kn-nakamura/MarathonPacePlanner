@@ -236,7 +236,7 @@ export function HorizontalPaceChart({
             <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
             <XAxis 
               type="number"
-              domain={[minPace, maxPace]} // 速いペース＝小さい値が左側
+              domain={[maxPace, minPace]} // 速いペース＝小さい値が右側（バーが長くなる）
               hide={true} // X軸は非表示（上部のカスタムラベルで代用）
             />
             <YAxis 
@@ -267,8 +267,9 @@ export function HorizontalPaceChart({
                 strokeWidth={2}
                 segment={[
                   { x: entry.targetPace, y: entry.kmPoint }, 
-                  { x: maxPace, y: entry.kmPoint }
+                  { x: minPace, y: entry.kmPoint }
                 ]}
+                ifOverflow="visible"
               />
             ))}
             <Bar 
