@@ -17,7 +17,7 @@ import {
   Tooltip,
   ReferenceLine
 } from 'recharts';
-import { MapContainer, TileLayer, Polyline, Popup, Marker, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, Popup, Marker, useMap, ZoomControl } from 'react-leaflet';
 import L, { LatLngTuple, LatLngExpression } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Segment, SegmentAnalysis } from '@/models/pace';
@@ -81,15 +81,11 @@ const MapController = ({ points }: { points: LatLngExpression[] }) => {
       }
     }
     
-    // Add zoom control - position it in the bottom right corner
-    const zoomControl = L.control.zoom({
-      position: 'bottomright'
-    });
-    map.zoomControl?.remove(); // Remove default zoom control
-    zoomControl.addTo(map);    // Add our custom positioned zoom control
+    // Don't add zoom control here - we'll use React-Leaflet's ZoomControl component instead
+    // Just ensure map is properly centered
     
     return () => {
-      zoomControl.remove(); // Clean up when component unmounts
+      // Cleanup if needed
     };
   }, [map, points]);
   
@@ -908,6 +904,9 @@ export function BasicGpxUploader(props: GPXUploaderProps) {
                       
                       {/* Map Controller component */}
                       <MapController points={mapPoints} />
+                      
+                      {/* Add zoom control */}
+                      <ZoomControl position="bottomright" />
                       
                       {/* Start marker */}
                       {mapPoints.length > 0 && (
