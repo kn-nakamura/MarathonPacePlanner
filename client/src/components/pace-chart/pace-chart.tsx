@@ -128,14 +128,14 @@ export function PaceChart({ segments, targetTime, exportMode = false, height = 3
   const minPaceValue = Math.max(0, minValue - padding);
   const maxPaceValue = maxValue + padding;
   
-  // Y軸の目盛りを生成する関数（30秒単位）
-  const generatePaceTicks = (min: number, max: number, step: number = 30) => {
+  // Y軸の目盛りを生成する関数（10秒単位）
+  const generatePaceTicks = (min: number, max: number, step: number = 10) => {
     const ticks: number[] = [];
-    // 1分単位に切り下げた値から開始
-    const startMin = Math.floor(min / 60) * 60;
+    // 10秒単位に切り下げた値から開始
+    const startValue = Math.floor(min / step) * step;
     
     // 最小値から最大値までステップごとに目盛りを生成
-    for (let i = startMin; i <= max; i += step) {
+    for (let i = startValue; i <= max; i += step) {
       // 範囲内の目盛りのみ追加
       if (i >= min) {
         ticks.push(i);
@@ -196,8 +196,8 @@ export function PaceChart({ segments, targetTime, exportMode = false, height = 3
             data={chartData}
             margin={{
               top: 10,
-              right: 10,
-              left: 10,
+              right: 5,
+              left: 0,
               bottom: 30,
             }}
           >
@@ -235,8 +235,8 @@ export function PaceChart({ segments, targetTime, exportMode = false, height = 3
               domain={[minPaceValue, maxPaceValue]}
               // Invert the axis so lower pace (faster) is higher on the chart
               reversed
-              // オートスケールに合わせた目盛りを生成
-              ticks={generatePaceTicks(minPaceValue, maxPaceValue, 30)}
+              // オートスケールに合わせた目盛りを生成（10秒単位）
+              ticks={generatePaceTicks(minPaceValue, maxPaceValue, 10)}
               tick={{ fontSize: isMobile ? 8 : 10 }}
               tickFormatter={(value) => {
                 const min = Math.floor(value / 60);
@@ -257,7 +257,6 @@ export function PaceChart({ segments, targetTime, exportMode = false, height = 3
               y={avgTargetPace} 
               stroke="#8884d8" 
               strokeDasharray="3 3" 
-              label="Avg Target Pace" 
             />
             <Line 
               type="monotone" 
