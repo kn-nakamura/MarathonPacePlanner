@@ -71,22 +71,32 @@ export function calculateSegmentTime(pace: string, distanceKm: number): string {
 
 /**
  * Calculates the total time for a marathon based on segment paces
+ * 各セグメント間の区間時間を正確に計算して合計する
  */
 export function calculateTotalTime(segments: Segment[]): string {
   let totalSeconds = 0;
   
-  segments.forEach(segment => {
-    // Handle MM:SS or HH:MM:SS formats
-    const timeParts = segment.segmentTime.split(':').map(Number);
-    if (timeParts.length === 3) {
-      // HH:MM:SS format
-      const [hours, minutes, seconds] = timeParts;
-      totalSeconds += hours * 3600 + minutes * 60 + seconds;
-    } else if (timeParts.length === 2) {
-      // MM:SS format
-      const [minutes, seconds] = timeParts;
-      totalSeconds += minutes * 60 + seconds;
+  segments.forEach((segment, index) => {
+    // セグメント間の距離を計算
+    let segmentDistance = 0;
+    const currentKm = parseFloat(segment.distance.split(' ')[0]);
+    
+    if (index === 0) {
+      // 最初のセグメントは距離そのもの
+      segmentDistance = currentKm;
+    } else {
+      // 2つ目以降は前のセグメントとの差分
+      const prevKm = parseFloat(segments[index-1].distance.split(' ')[0]);
+      segmentDistance = currentKm - prevKm;
     }
+    
+    // ペースを秒に変換
+    const paceStr = segment.customPace.replace('/km', '');
+    const [min, sec] = paceStr.split(':').map(Number);
+    const paceSeconds = (min * 60) + sec;
+    
+    // 区間時間を計算して累積に加算
+    totalSeconds += paceSeconds * segmentDistance;
   });
   
   const hours = Math.floor(totalSeconds / 3600);
@@ -104,15 +114,27 @@ export function calculateCumulativeTimes(segments: Segment[]): string[] {
   let cumulativeSeconds = 0;
   const cumulativeTimes: string[] = [];
   
-  segments.forEach(segment => {
-    // ペースと距離から区間タイムを計算して累積に加算
-    const distance = parseFloat(segment.distance.split(' ')[0]);
+  segments.forEach((segment, index) => {
+    // セグメント間の距離を計算
+    let segmentDistance = 0;
+    const currentKm = parseFloat(segment.distance.split(' ')[0]);
+    
+    if (index === 0) {
+      // 最初のセグメントは距離そのもの
+      segmentDistance = currentKm;
+    } else {
+      // 2つ目以降は前のセグメントとの差分
+      const prevKm = parseFloat(segments[index-1].distance.split(' ')[0]);
+      segmentDistance = currentKm - prevKm;
+    }
+    
+    // ペースを秒に変換
     const paceStr = segment.customPace.replace('/km', '');
     const [paceMin, paceSec] = paceStr.split(':').map(Number);
     const paceInSeconds = (paceMin * 60) + paceSec;
-    const segmentSeconds = paceInSeconds * distance;
     
-    // 累積秒数に加算
+    // 区間時間を計算して累積に加算
+    const segmentSeconds = paceInSeconds * segmentDistance;
     cumulativeSeconds += segmentSeconds;
     
     // フォーマットして結果に追加
