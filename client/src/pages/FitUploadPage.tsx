@@ -16,13 +16,22 @@ export default function FitUploadPage() {
     const file = e.target.files?.[0]
     if (!file) return
     
+    // Reset state
     setLoading(true)
     setError(null)
+    setFitData(null)
+    
+    // Check if file is a FIT file (or at least has the right extension)
+    if (!file.name.toLowerCase().endsWith('.fit')) {
+      setLoading(false)
+      setError('Please upload a file with .FIT extension.')
+      return
+    }
     
     try {
       const buffer = await file.arrayBuffer()
       
-      // Parse FIT file
+      // Parse FIT file with better error handling
       const parser = new FitParser({ 
         mode: 'cascade',
         speedUnit: 'km/h',
@@ -34,23 +43,31 @@ export default function FitUploadPage() {
         
         if (err) {
           console.error('Error parsing FIT file:', err)
-          setError('Failed to parse FIT file. Make sure it\'s a valid .FIT format.')
+          setError('Failed to parse FIT file. Make sure it\'s a valid .FIT format from a GPS device.')
           return
         }
         
         // Check if the file contains the necessary data
-        if (!data || !data.records || data.records.length === 0) {
-          setError('The FIT file doesn\'t contain any workout data.')
+        if (!data) {
+          setError('The file couldn\'t be processed. It may be corrupted.')
           return
         }
         
+        if (!data.records || data.records.length === 0) {
+          setError('The FIT file doesn\'t contain any workout record data.')
+          return
+        }
+        
+        // Log the data structure to help with debugging
+        console.log('FIT data structure:', Object.keys(data))
+        
+        // Success!
         setFitData(data)
-        console.log('FIT data:', data)
       })
     } catch (err) {
       setLoading(false)
       console.error('Error processing file:', err)
-      setError('Failed to process the file.')
+      setError('Failed to process the file. The file may be corrupt or not a valid FIT format.')
     }
   }
 
