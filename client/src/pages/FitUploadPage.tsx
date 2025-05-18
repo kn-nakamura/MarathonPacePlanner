@@ -4,6 +4,7 @@ import { saveAs } from 'file-saver'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { InfoIcon } from 'lucide-react'
 import FitCharts from '../components/FitCharts'
 import { convertToCsv, buildTcx, buildGpx } from '../utils/fitConverters'
 
@@ -11,6 +12,53 @@ export default function FitUploadPage() {
   const [fitData, setFitData] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  
+  // Function to load sample FIT data
+  const loadSampleFit = async () => {
+    setLoading(true)
+    setError(null)
+    setFitData(null)
+    
+    try {
+      // Fetch the sample FIT file
+      const response = await fetch('/samples/sample.fit')
+      if (!response.ok) {
+        throw new Error('Could not load sample data')
+      }
+      
+      const arrayBuffer = await response.arrayBuffer()
+      
+      // Parse the FIT file
+      const parser = new FitParser({ 
+        mode: 'cascade',
+        speedUnit: 'km/h',
+        lengthUnit: 'km' 
+      })
+      
+      parser.parse(arrayBuffer, (err: Error | null, data: any) => {
+        setLoading(false)
+        
+        if (err) {
+          console.error('Error parsing sample FIT file:', err)
+          setError('Failed to parse sample FIT file.')
+          return
+        }
+        
+        // Check if the file contains the necessary data
+        if (!data || !data.records || data.records.length === 0) {
+          setError('The sample FIT file doesn\'t contain any workout records.')
+          return
+        }
+        
+        // Success!
+        setFitData(data)
+      })
+    } catch (err) {
+      setLoading(false)
+      console.error('Error loading sample file:', err)
+      setError('Failed to load the sample data. Please try uploading your own FIT file.')
+    }
+  }
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -105,17 +153,35 @@ export default function FitUploadPage() {
             Upload a .FIT file from your GPS device to analyze your workout data and export in different formats.
           </p>
           
-          <div className="flex items-center space-x-4">
-            <label className="cursor-pointer bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-md">
-              Choose File
-              <input 
-                type="file" 
-                accept=".fit" 
-                onChange={onFileChange} 
-                className="hidden" 
-              />
-            </label>
-            {loading && <span>Processing...</span>}
+          <div className="flex flex-col space-y-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <Button className="cursor-pointer" asChild>
+                <label>
+                  Choose FIT File
+                  <input 
+                    type="file" 
+                    accept=".fit" 
+                    onChange={onFileChange} 
+                    className="hidden" 
+                  />
+                </label>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                onClick={loadSampleFit}
+                disabled={loading}
+              >
+                Try Sample Data
+              </Button>
+              
+              {loading && <span className="text-muted-foreground">Processing...</span>}
+            </div>
+            
+            <div className="flex items-center p-3 text-sm bg-blue-500/10 dark:bg-blue-500/5 text-blue-600 dark:text-blue-400 rounded-md">
+              <InfoIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+              <p>FIT files are binary files created by Garmin, Wahoo, and other GPS devices. Sample data is available for testing.</p>
+            </div>
           </div>
           
           {error && (
