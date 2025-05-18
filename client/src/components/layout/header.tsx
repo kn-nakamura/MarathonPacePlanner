@@ -32,6 +32,13 @@ export default function Header() {
         </div>
         
         <div className="flex items-center space-x-4">
+          <nav className="hidden md:flex items-center space-x-4">
+            <Link href="/fit-upload">
+              <span className="text-sm font-medium hover:text-primary cursor-pointer transition-colors">
+                FIT Analysis
+              </span>
+            </Link>
+          </nav>
           <Button
             variant="ghost"
             size="icon"
