@@ -12,7 +12,7 @@ export function convertToCsv(records: any[]) {
   return [header, ...rows].join('\n')
 }
 
-// This is a simplified TCX builder without using the library
+// Simple TCX builder implementation
 export function buildTcx(records: any[]) {
   // Start TCX XML
   let tcx = '<?xml version="1.0" encoding="UTF-8"?>\n';
@@ -66,7 +66,7 @@ export function buildTcx(records: any[]) {
   return tcx;
 }
 
-// This is a simplified GPX builder without using the library
+// Simple GPX builder implementation
 export function buildGpx(records: any[]) {
   // Start GPX XML
   let gpx = '<?xml version="1.0" encoding="UTF-8"?>\n';
