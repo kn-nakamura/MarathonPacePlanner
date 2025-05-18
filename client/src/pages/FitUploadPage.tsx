@@ -1,10 +1,12 @@
-import { useState } from 'react'
-import { FitParser } from 'fit-file-parser'
+// client/src/pages/FitUploadPage.tsx
+
+import React, { useState } from 'react'
+import FitParser from 'fit-file-parser'
 import { saveAs } from 'file-saver'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { InfoIcon } from 'lucide-react'
+import FitMap from '../components/FitMap'
 import FitCharts from '../components/FitCharts'
 import { convertToCsv, buildTcx, buildGpx } from '../utils/fitConverters'
 
@@ -12,178 +14,96 @@ export default function FitUploadPage() {
   const [fitData, setFitData] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  
-  // Function to load sample FIT data
-  const loadSampleFit = async () => {
-    setLoading(true)
-    setError(null)
-    setFitData(null)
-    
-    try {
-      // Fetch the sample FIT file
-      const response = await fetch('/samples/sample.fit')
-      if (!response.ok) {
-        throw new Error('Could not load sample data')
-      }
-      
-      const arrayBuffer = await response.arrayBuffer()
-      
-      // Parse the FIT file
-      const parser = new FitParser({ 
-        mode: 'cascade',
-        speedUnit: 'km/h',
-        lengthUnit: 'km' 
-      })
-      
-      parser.parse(arrayBuffer, (err: Error | null, data: any) => {
-        setLoading(false)
-        
-        if (err) {
-          console.error('Error parsing sample FIT file:', err)
-          setError('Failed to parse sample FIT file.')
-          return
-        }
-        
-        // Check if the file contains the necessary data
-        if (!data || !data.records || data.records.length === 0) {
-          setError('The sample FIT file doesn\'t contain any workout records.')
-          return
-        }
-        
-        // Success!
-        setFitData(data)
-      })
-    } catch (err) {
-      setLoading(false)
-      console.error('Error loading sample file:', err)
-      setError('Failed to load the sample data. Please try uploading your own FIT file.')
-    }
-  }
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    
-    // Reset state
+
+    console.log('Selected file:', file.name, file.size)
+
+    if (!/\.fit$/i.test(file.name)) {
+      setError('Please upload a file with the .FIT extension.')
+      return
+    }
+
     setLoading(true)
     setError(null)
     setFitData(null)
-    
-    // Check if file is a FIT file (or at least has the right extension)
-    if (!file.name.toLowerCase().endsWith('.fit')) {
-      setLoading(false)
-      setError('Please upload a file with .FIT extension.')
-      return
-    }
-    
+
     try {
       const buffer = await file.arrayBuffer()
-      
-      // Parse FIT file with better error handling
-      const parser = new FitParser({ 
-        mode: 'cascade',
+      const parser = new FitParser({
+        mode: 'list',        // ensure data.records is always populated
         speedUnit: 'km/h',
-        lengthUnit: 'km' 
+        lengthUnit: 'km',
       })
-      
+
       parser.parse(buffer, (err: Error | null, data: any) => {
         setLoading(false)
-        
+
         if (err) {
           console.error('Error parsing FIT file:', err)
-          setError('Failed to parse FIT file. Make sure it\'s a valid .FIT format from a GPS device.')
+          setError('Failed to parse FIT file. Please make sure it is a valid .FIT file.')
           return
         }
-        
-        // Check if the file contains the necessary data
-        if (!data) {
-          setError('The file couldn\'t be processed. It may be corrupted.')
+
+        if (!data?.records?.length) {
+          setError('No workout records found in the FIT file.')
           return
         }
-        
-        if (!data.records || data.records.length === 0) {
-          setError('The FIT file doesn\'t contain any workout record data.')
-          return
-        }
-        
-        // Log the data structure to help with debugging
-        console.log('FIT data structure:', Object.keys(data))
-        
-        // Success!
+
         setFitData(data)
       })
     } catch (err) {
       setLoading(false)
-      console.error('Error processing file:', err)
-      setError('Failed to process the file. The file may be corrupt or not a valid FIT format.')
+      console.error('Unexpected error reading file:', err)
+      setError('An unexpected error occurred while reading the file.')
     }
   }
 
   const downloadCsv = () => {
-    if (!fitData || !fitData.records) return
-    const csvContent = convertToCsv(fitData.records)
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' })
-    saveAs(blob, 'activity.csv')
+    if (!fitData?.records) return
+    const csv = convertToCsv(fitData.records)
+    saveAs(new Blob([csv], { type: 'text/csv;charset=utf-8' }), 'activity.csv')
   }
 
   const downloadTcx = () => {
-    if (!fitData || !fitData.records) return
-    const tcxContent = buildTcx(fitData.records)
-    const blob = new Blob([tcxContent], { type: 'application/xml' })
-    saveAs(blob, 'activity.tcx')
+    if (!fitData?.records) return
+    const tcx = buildTcx(fitData.records)
+    saveAs(new Blob([tcx], { type: 'application/xml' }), 'activity.tcx')
   }
 
   const downloadGpx = () => {
-    if (!fitData || !fitData.records) return
-    const gpxContent = buildGpx(fitData.records)
-    const blob = new Blob([gpxContent], { type: 'application/xml' })
-    saveAs(blob, 'activity.gpx')
+    if (!fitData?.records) return
+    const gpx = buildGpx(fitData.records)
+    saveAs(new Blob([gpx], { type: 'application/xml' }), 'activity.gpx')
   }
 
   return (
     <div className="container max-w-4xl mx-auto py-8">
       <h1 className="text-3xl font-bold mb-6">FIT File Analyzer</h1>
-      
+
       <Card className="mb-8">
         <CardHeader>
           <CardTitle>Upload FIT File</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="mb-4 text-muted-foreground">
-            Upload a .FIT file from your GPS device to analyze your workout data and export in different formats.
+            Choose a .FIT file from your GPS device to analyze your workout data.
           </p>
-          
-          <div className="flex flex-col space-y-4">
-            <div className="flex flex-wrap items-center gap-4">
-              <Button className="cursor-pointer" asChild>
-                <label>
-                  Choose FIT File
-                  <input 
-                    type="file" 
-                    accept=".fit" 
-                    onChange={onFileChange} 
-                    className="hidden" 
-                  />
-                </label>
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                onClick={loadSampleFit}
-                disabled={loading}
-              >
-                Try Sample Data
-              </Button>
-              
-              {loading && <span className="text-muted-foreground">Processing...</span>}
-            </div>
-            
-            <div className="flex items-center p-3 text-sm bg-blue-500/10 dark:bg-blue-500/5 text-blue-600 dark:text-blue-400 rounded-md">
-              <InfoIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-              <p>FIT files are binary files created by Garmin, Wahoo, and other GPS devices. Sample data is available for testing.</p>
-            </div>
+
+          <div className="relative inline-block">
+            {/* Invisible overlay so the Button can trigger the file dialog */}
+            <input
+              type="file"
+              accept=".fit"
+              onChange={onFileChange}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
+            <Button disabled={loading}>Choose FIT File</Button>
           </div>
-          
+          {loading && <span className="ml-4 text-muted-foreground">Processing...</span>}
+
           {error && (
             <Alert variant="destructive" className="mt-4">
               <AlertDescription>{error}</AlertDescription>
@@ -191,9 +111,10 @@ export default function FitUploadPage() {
           )}
         </CardContent>
       </Card>
-      
+
       {fitData && (
         <>
+          {/* Activity Summary */}
           <Card className="mb-8">
             <CardHeader>
               <CardTitle>Activity Summary</CardTitle>
@@ -201,38 +122,49 @@ export default function FitUploadPage() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <h3 className="font-medium">Device Info</h3>
+                  <h3 className="font-medium">Device</h3>
                   <p className="text-sm text-muted-foreground">
-                    {fitData.device_info?.[0]?.manufacturer || 'Unknown'} {fitData.device_info?.[0]?.product_name || ''}
+                    {fitData.device_info?.[0]?.manufacturer || 'Unknown'}{' '}
+                    {fitData.device_info?.[0]?.product_name || ''}
                   </p>
                 </div>
-                
                 <div>
-                  <h3 className="font-medium">Activity Type</h3>
+                  <h3 className="font-medium">Sport</h3>
                   <p className="text-sm text-muted-foreground">
                     {fitData.session?.[0]?.sport || 'Unknown'}
                   </p>
                 </div>
-                
                 <div>
                   <h3 className="font-medium">Duration</h3>
                   <p className="text-sm text-muted-foreground">
-                    {fitData.session?.[0]?.total_timer_time ? 
-                      formatDuration(fitData.session[0].total_timer_time) : 'Unknown'}
+                    {fitData.session?.[0]?.total_timer_time
+                      ? formatDuration(fitData.session[0].total_timer_time)
+                      : 'Unknown'}
                   </p>
                 </div>
-                
                 <div>
                   <h3 className="font-medium">Distance</h3>
                   <p className="text-sm text-muted-foreground">
-                    {fitData.session?.[0]?.total_distance ? 
-                      `${(fitData.session[0].total_distance / 1000).toFixed(2)} km` : 'Unknown'}
+                    {fitData.session?.[0]?.total_distance
+                      ? `${(fitData.session[0].total_distance / 1000).toFixed(2)} km`
+                      : 'Unknown'}
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          
+
+          {/* Activity Map */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Activity Map</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FitMap records={fitData.records} />
+            </CardContent>
+          </Card>
+
+          {/* Data Visualization */}
           <Card className="mb-8">
             <CardHeader>
               <CardTitle>Data Visualization</CardTitle>
@@ -241,20 +173,19 @@ export default function FitUploadPage() {
               <FitCharts fitData={fitData} />
             </CardContent>
           </Card>
-          
+
+          {/* Export Options */}
           <Card>
             <CardHeader>
-              <CardTitle>Export Options</CardTitle>
+              <CardTitle>Export</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-4">
-                <Button onClick={downloadCsv}>
-                  Download CSV
-                </Button>
-                <Button onClick={downloadTcx} variant="outline">
+                <Button onClick={downloadCsv}>Download CSV</Button>
+                <Button variant="outline" onClick={downloadTcx}>
                   Download TCX
                 </Button>
-                <Button onClick={downloadGpx} variant="outline">
+                <Button variant="outline" onClick={downloadGpx}>
                   Download GPX
                 </Button>
               </div>
@@ -266,14 +197,12 @@ export default function FitUploadPage() {
   )
 }
 
+/** format seconds as HH:MM:SS */
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
   const secs = Math.floor(seconds % 60)
-  
-  return [
-    hours.toString().padStart(2, '0'),
-    minutes.toString().padStart(2, '0'),
-    secs.toString().padStart(2, '0')
-  ].join(':')
+  return [hours, minutes, secs]
+    .map((n) => n.toString().padStart(2, '0'))
+    .join(':')
 }

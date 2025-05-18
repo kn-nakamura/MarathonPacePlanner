@@ -1,182 +1,206 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+// client/src/components/FitCharts.tsx
 
-interface FitChartProps {
-  fitData: any;
+import React, { useState, useMemo } from 'react'
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend
+} from 'recharts'
+
+/** 同期用 ID（必ず全チャートで同じものを使う） */
+const SYNC_ID = 'fitChartSync'
+
+interface FitRecord {
+  timestamp: string
+  distance?: number     // kilometers already
+  heart_rate?: number
+  altitude?: number     // meters
+  speed?: number        // km/h
+  cadence?: number      // spm
+  power?: number        // watts
+  temperature?: number  // °C
+  [key: string]: any
 }
 
-export default function FitCharts({ fitData }: FitChartProps) {
-  // Prepare data for charts by mapping records
-  const records = fitData.records.map((r: any, index: number) => ({
-    index,
-    time: new Date(r.timestamp).toLocaleTimeString(),
-    heartRate: r.heart_rate,
-    altitude: r.altitude,
-    speed: r.speed,
-    cadence: r.cadence,
-    // Calculate pace from speed (if available)
-    pace: r.speed ? calculatePaceFromSpeed(r.speed) : null
-  }));
+interface FitChartsProps {
+  fitData: { records: FitRecord[] }
+}
 
-  // Filter data to reduce points for better performance
-  const filteredData = filterDataPoints(records, 100);
+const MAX_POINTS = 200
+
+export default function FitCharts({ fitData }: FitChartsProps) {
+  const [xAxisKey, setXAxisKey] = useState<'time'|'elapsedTime'|'distance'>('elapsedTime')
+
+  // 1) 前処理＆間引き
+  const processed = useMemo(() => {
+    const recs = fitData.records
+    if (!recs.length) return []
+
+    const startMs = new Date(recs[0].timestamp).getTime()
+    const mapped = recs.map(r => {
+      const ts = new Date(r.timestamp)
+      const timeMs = ts.getTime()
+      const elapsed = (timeMs - startMs) / 1000
+      return {
+        timeMs,
+        time: ts.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', hour12:false }),
+        elapsedTime: elapsed,
+        distance: r.distance ?? null,
+        heartRate: r.heart_rate ?? null,
+        altitude:  r.altitude   ?? null,
+        speed:     r.speed      ?? null,
+        pace:      r.speed && r.speed > 0 ? 3600 / r.speed : null,
+        cadence:   r.cadence    ?? null,
+        power:     r.power      ?? null,
+        temperature: r.temperature ?? null,
+      }
+    })
+
+    const interval = Math.ceil(mapped.length / MAX_POINTS)
+    return mapped.filter((_, i) => i % interval === 0)
+  }, [fitData.records])
+
+  // 2) X軸に必要なポイントのみ抽出
+  const displayData = useMemo(() => {
+    return processed.filter(pt =>
+      xAxisKey === 'time'
+        ? pt.timeMs != null
+        : pt[xAxisKey] != null && !isNaN(pt[xAxisKey])
+    )
+  }, [processed, xAxisKey])
+
+  // 3) 距離軸のキリのいい目盛りを計算
+  const distanceTicks = useMemo<number[] | undefined>(() => {
+    if (xAxisKey !== 'distance' || displayData.length === 0) return undefined
+    const maxDist = Math.max(...displayData.map(p => p.distance ?? 0))
+    const step = maxDist > 50 ? 10 : maxDist > 10 ? 5 : 1
+    const last = Math.ceil(maxDist / step) * step
+    const ticks: number[] = []
+    for (let v = 0; v <= last; v += step) ticks.push(v)
+    return ticks
+  }, [displayData, xAxisKey])
+
+  // 4) 描画するメトリック設定
+  const metrics = [
+    { key: 'heartRate',   name: 'Heart Rate',   stroke: '#ef4444', unit: 'bpm',   domain: ['dataMin - 5','dataMax + 5'] },
+    { key: 'altitude',    name: 'Elevation',    stroke: '#3b82f6', unit: 'm',     domain: ['dataMin - 10','dataMax + 10'] },
+    { key: 'speed',       name: 'Speed',        stroke: '#10b981', unit: 'km/h', domain: ['dataMin - 1','dataMax + 1'], yAxisId: 'speed' },
+    { key: 'pace',        name: 'Pace',         stroke: '#f97316', unit: '/km',  domain: [720,240],                    yAxisId: 'pace' },
+    { key: 'cadence',     name: 'Cadence',      stroke: '#a855f7', unit: 'spm',   domain: ['dataMin - 5','dataMax + 5'] },
+    { key: 'power',       name: 'Power',        stroke: '#6b7280', unit: 'W',     domain: ['dataMin - 10','dataMax + 10'] },
+    { key: 'temperature', name: 'Temperature',  stroke: '#0ea5e9', unit: '°C',    domain: ['dataMin - 2','dataMax + 2'] },
+  ] as const
+
+  const hasData = (key: string) =>
+    displayData.some(pt => pt[key as keyof typeof pt] != null)
 
   return (
     <div className="space-y-8">
-      {/* Heart Rate Chart */}
-      {hasValidData(filteredData, 'heartRate') && (
-        <div>
-          <h3 className="text-base font-medium mb-2">Heart Rate</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={filteredData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#555555" strokeOpacity={0.2} />
-              <XAxis dataKey="time" tick={{ fontSize: 12 }} />
-              <YAxis 
-                domain={['dataMin - 5', 'dataMax + 5']}
-                tickFormatter={(value) => `${value} bpm`}
-              />
-              <Tooltip contentStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.8)', border: 'none' }} />
-              <Line
-                type="monotone"
-                dataKey="heartRate"
-                name="Heart Rate"
-                stroke="#ef4444"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 6 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+      {/* X軸切替 */}
+      <div className="flex items-center gap-2 mb-4">
+        <label className="font-medium">X-Axis:</label>
+        <select
+          value={xAxisKey}
+          onChange={e => setXAxisKey(e.target.value as any)}
+          className="border px-2 py-1 rounded"
+        >
+          <option value="time">Clock Time</option>
+          <option value="elapsedTime">Elapsed Time</option>
+          <option value="distance">Distance</option>
+        </select>
+      </div>
 
-      {/* Altitude Chart */}
-      {hasValidData(filteredData, 'altitude') && (
-        <div>
-          <h3 className="text-base font-medium mb-2">Altitude</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={filteredData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#555555" strokeOpacity={0.2} />
-              <XAxis dataKey="time" tick={{ fontSize: 12 }} />
-              <YAxis 
-                domain={['dataMin - 10', 'dataMax + 10']}
-                tickFormatter={(value) => `${value} m`}
-              />
-              <Tooltip contentStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.8)', border: 'none' }} />
-              <Line
-                type="monotone"
-                dataKey="altitude"
-                name="Altitude"
-                stroke="#3b82f6"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 6 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+      {/* 各チャート */}
+      {metrics.map(m =>
+        hasData(m.key) ? (
+          <div key={m.key}>
+            <h3 className="text-base font-medium mb-2">
+              {m.name} ({m.unit})
+            </h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart
+                data={displayData}
+                syncId={SYNC_ID}  // ← ここで同期IDを指定
+              >
+                <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
 
-      {/* Speed Chart */}
-      {hasValidData(filteredData, 'speed') && (
-        <div>
-          <h3 className="text-base font-medium mb-2">Speed / Pace</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={filteredData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#555555" strokeOpacity={0.2} />
-              <XAxis dataKey="time" tick={{ fontSize: 12 }} />
-              <YAxis 
-                yAxisId="speed"
-                orientation="left"
-                domain={['dataMin - 1', 'dataMax + 1']}
-                tickFormatter={(value) => `${value} km/h`}
-              />
-              <YAxis 
-                yAxisId="pace"
-                orientation="right"
-                domain={[240, 720]}
-                tickFormatter={(value) => formatPace(value)}
-                reversed={true}
-              />
-              <Tooltip contentStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.8)', border: 'none' }} />
-              <Line
-                type="monotone"
-                dataKey="speed"
-                name="Speed"
-                stroke="#10b981"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 6 }}
-                yAxisId="speed"
-              />
-              <Line
-                type="monotone"
-                dataKey="pace"
-                name="Pace"
-                stroke="#f97316"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 6 }}
-                yAxisId="pace"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+                <XAxis
+                  dataKey={xAxisKey === 'time' ? 'timeMs' : xAxisKey}
+                  type="number"
+                  scale={xAxisKey === 'time' ? 'time' : 'linear'}
+                  domain={['auto','auto']}
+                  ticks={xAxisKey === 'distance' ? distanceTicks : undefined}
+                  tickFormatter={
+                    xAxisKey === 'time'
+                      ? (v) => new Date(v as number)
+                          .toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', hour12:false })
+                      : xAxisKey === 'elapsedTime'
+                      ? (v) => formatElapsedHM(v as number)
+                      : undefined
+                  }
+                />
 
-      {/* Cadence Chart */}
-      {hasValidData(filteredData, 'cadence') && (
-        <div>
-          <h3 className="text-base font-medium mb-2">Cadence</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={filteredData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#555555" strokeOpacity={0.2} />
-              <XAxis dataKey="time" tick={{ fontSize: 12 }} />
-              <YAxis 
-                domain={['dataMin - 5', 'dataMax + 5']}
-                tickFormatter={(value) => `${value} spm`}
-              />
-              <Tooltip contentStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.8)', border: 'none' }} />
-              <Line
-                type="monotone"
-                dataKey="cadence"
-                name="Cadence"
-                stroke="#a855f7"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 6 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+                {!m.yAxisId ? (
+                  <YAxis domain={m.domain} tickFormatter={(v) => `${v}`} />
+                ) : (
+                  <YAxis
+                    yAxisId={m.yAxisId}
+                    domain={m.domain}
+                    tickFormatter={m.key === 'pace' ? formatPace : (v) => `${v}`}
+                    orientation={m.yAxisId === 'pace' ? 'right' : 'left'}
+                  />
+                )}
+
+                <Tooltip
+                  formatter={(value) =>
+                    m.key === 'pace' ? formatPace(value as number) : `${value}`
+                  }
+                  labelFormatter={(label) =>
+                    xAxisKey === 'time'
+                      ? new Date(label as number)
+                          .toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', hour12:false })
+                      : xAxisKey === 'elapsedTime'
+                      ? formatElapsedHM(label as number)
+                      : `${(label as number).toFixed(2)}`
+                  }
+                />
+
+                <Legend />
+
+                <Line
+                  type="monotone"
+                  dataKey={m.key}
+                  name={m.name}
+                  stroke={m.stroke}
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 5 }}
+                  yAxisId={m.yAxisId}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        ) : null
       )}
     </div>
-  );
+  )
 }
 
-// Helper function to convert speed (km/h) to pace (seconds per km)
-function calculatePaceFromSpeed(speed: number): number | null {
-  if (!speed || speed < 0.1) return null; // Avoid division by zero or extremely slow speeds
-  return 3600 / speed; // Convert km/h to seconds per km
+/** 経過時間 (秒) → "H:MM" */
+function formatElapsedHM(sec: number): string {
+  const h = Math.floor(sec / 3600)
+  const m = Math.floor((sec % 3600) / 60)
+  return `${h}:${m.toString().padStart(2, '0')}`
 }
 
-// Format pace from seconds to MM:SS format
-function formatPace(seconds: number): string {
-  if (!seconds || seconds < 0) return '--:--';
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}/km`;
-}
-
-// Filter data points to improve chart performance
-function filterDataPoints(data: any[], maxPoints: number): any[] {
-  if (!data || data.length <= maxPoints) return data;
-  
-  const interval = Math.ceil(data.length / maxPoints);
-  return data.filter((_: any, i: number) => i % interval === 0);
-}
-
-// Check if the data contains valid values for a specific field
-function hasValidData(data: any[], field: string): boolean {
-  if (!data || data.length === 0) return false;
-  return data.some(item => item[field] != null && !isNaN(item[field]));
+/** ペース (秒/km) → "M:SS/km" */
+function formatPace(sec: number): string {
+  const m = Math.floor(sec / 60)
+  const s = Math.floor(sec % 60)
+  return `${m}:${s.toString().padStart(2, '0')}/km`
 }
