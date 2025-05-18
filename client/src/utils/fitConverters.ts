@@ -1,6 +1,6 @@
 // Simple utility functions for FIT file conversion
 export function convertToCsv(records: any[]) {
-  const header = 'time,latitude,longitude,altitude,heart_rate,speed'
+  const header = 'time,latitude,longitude,altitude,heart_rate,speed';
   const rows = records.map(r => [
     r.timestamp,
     r.position?.latitude || '',
@@ -8,8 +8,8 @@ export function convertToCsv(records: any[]) {
     r.altitude,
     r.heart_rate,
     r.speed
-  ].join(','))
-  return [header, ...rows].join('\n')
+  ].join(','));
+  return [header, ...rows].join('\n');
 }
 
 // Simple TCX builder implementation
