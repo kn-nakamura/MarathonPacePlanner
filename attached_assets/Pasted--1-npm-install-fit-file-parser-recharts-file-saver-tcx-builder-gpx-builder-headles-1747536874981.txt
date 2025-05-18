@@ -1,0 +1,190 @@
+# 1. 必要パッケージのインストール
+npm install fit-file-parser recharts file-saver tcx-builder gpx-builder @headlessui/react @heroicons/react
+
+# 2. レイアウトコンポーネント作成
+cat > client/src/components/Layout.tsx << 'EOF'
+import { Fragment } from 'react'
+import { Menu, Transition } from '@headlessui/react'
+import { MenuIcon } from '@heroicons/react/outline'
+import { Link } from 'react-router-dom'
+
+export function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <header className="bg-white shadow">
+        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+          <h1 className="text-lg font-semibold"><Link to="/">Marathon Pace</Link></h1>
+          <Menu as="div" className="relative">
+            <Menu.Button className="p-2 rounded-md hover:bg-gray-100">
+              <MenuIcon className="h-6 w-6" />
+            </Menu.Button>
+            <Transition as={Fragment} enter="transition" leave="transition">
+              <Menu.Items className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-md p-1">
+                <Menu.Item>{() => <Link to="/" className="block px-4 py-2">ホーム</Link>}</Menu.Item>
+                <Menu.Item>{() => <Link to="/fit-upload" className="block px-4 py-2">FITアップロード</Link>}</Menu.Item>
+                <Menu.Item>{() => <Link to="/plans" className="block px-4 py-2">保存プラン</Link>}</Menu.Item>
+              </Menu.Items>
+            </Transition>
+          </Menu>
+        </div>
+      </header>
+      <main className="flex-1 container mx-auto px-4 py-6">{children}</main>
+    </div>
+  )
+}
+EOF
+
+# 3. App.tsx にレイアウト＆ルーティング追加
+apply_patch << 'EOF'
+*** Begin Patch
+*** Update File: client/src/App.tsx
+@@
+-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+-import HomePage from './pages/HomePage'
++import { BrowserRouter, Routes, Route } from 'react-router-dom'
++import HomePage from './pages/HomePage'
++import FitUploadPage from './pages/FitUploadPage'
++import { Layout } from './components/Layout'
+ 
+ function App() {
+-  return (
+-    <BrowserRouter>
+-      <Routes>
+-        <Route path="/" element={<HomePage />} />
+-      </Routes>
+-    </BrowserRouter>
+-  )
++  return (
++    <BrowserRouter>
++      <Layout>
++        <Routes>
++          <Route path="/" element={<HomePage />} />
++          <Route path="/fit-upload" element={<FitUploadPage />} />
++        </Routes>
++      </Layout>
++    </BrowserRouter>
++  )
+ }
+*** End Patch
+EOF
+
+# 4. FITアップロードページ作成
+cat > client/src/pages/FitUploadPage.tsx << 'EOF'
+import { useState } from 'react'
+import { FitParser } from 'fit-file-parser'
+import FitCharts from '../components/FitCharts'
+import { convertToCsv, buildTcx, buildGpx } from '../utils/fitConverters'
+import { saveAs } from 'file-saver'
+
+export default function FitUploadPage() {
+  const [fitData, setFitData] = useState<any>(null)
+  const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const buffer = await file.arrayBuffer()
+    const parser = new FitParser({ mode: 'cascade', speedUnit: 'km/h', lengthUnit: 'km' })
+    parser.parse(buffer, (err, data) => {
+      if (err) throw err
+      setFitData(data)
+    })
+  }
+
+  return (
+    <div>
+      <h2 className="text-xl font-semibold mb-4">FITデータアップロード</h2>
+      <input type="file" accept=".fit" onChange={onFileChange} />
+      {fitData && (
+        <>
+          <FitCharts fitData={fitData} />
+          <div className="mt-4 space-x-2">
+            <button onClick={() => saveAs(new Blob([convertToCsv(fitData.records)], { type: 'text/csv' }), 'activity.csv')} className="btn">CSV ダウンロード</button>
+            <button onClick={() => saveAs(new Blob([buildTcx(fitData.records)], { type: 'application/xml' }), 'activity.tcx')} className="btn">TCX ダウンロード</button>
+            <button onClick={() => saveAs(new Blob([buildGpx(fitData.records)], { type: 'application/xml' }), 'activity.gpx')} className="btn">GPX ダウンロード</button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+EOF
+
+# 5. チャートコンポーネント作成
+cat > client/src/components/FitCharts.tsx << 'EOF'
+import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+
+export default function FitCharts({ fitData }: { fitData: any }) {
+  const records = fitData.records.map((r: any) => ({
+    time: new Date(r.timestamp).toLocaleTimeString(),
+    heartRate: r.heart_rate,
+    altitude: r.altitude,
+    speed: r.speed
+  }))
+
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <LineChart data={records}>
+        <XAxis dataKey="time" />
+        <YAxis />
+        <Tooltip />
+        <Legend />
+        <Line dataKey="heartRate" name="心拍数" dot={false} />
+        <Line dataKey="altitude" name="高度" dot={false} />
+        <Line dataKey="speed" name="速度(km/h)" dot={false} />
+      </LineChart>
+    </ResponsiveContainer>
+  )
+}
+EOF
+
+# 6. 変換ユーティリティ作成
+cat > client/src/utils/fitConverters.ts << 'EOF'
+import { Builder as TcxBuilder } from 'tcx-builder'
+import { GPXBuilder } from 'gpx-builder'
+import { Point } from 'gpx-builder/dist/builder'
+export function convertToCsv(records: any[]) {
+  const header = 'time,latitude,longitude,altitude,heart_rate,speed'
+  const rows = records.map(r => [
+    r.timestamp,
+    r.position?.latitude || '',
+    r.position?.longitude || '',
+    r.altitude,
+    r.heart_rate,
+    r.speed
+  ].join(','))
+  return [header, ...rows].join('\n')
+}
+
+export function buildTcx(records: any[]) {
+  const builder = new TcxBuilder()
+  const activity = builder.createActivity('Running')
+  const lap = activity.createLap(new Date(records[0].timestamp))
+  records.forEach(r => {
+    lap.createTrackPoint({
+      time: new Date(r.timestamp),
+      position: r.position,
+      altitude: r.altitude,
+      heartRateBpm: r.heart_rate,
+      distanceMeters: r.distance
+    })
+  })
+  return builder.build()
+}
+
+export function buildGpx(records: any[]) {
+  const builder = new GPXBuilder()
+  const track = builder.createTrack('Activity')
+  const segment = track.createSegment()
+  records.forEach(r => {
+    segment.createPoint(new Point(r.position?.latitude, r.position?.longitude, {
+      ele: r.altitude,
+      time: new Date(r.timestamp)
+    }))
+  })
+  return builder.build()
+}
+EOF
+
+# 7. 動作確認＆コミット
+git add .
+git commit -m "feat: ハンバーガーメニュー・FITデータアップロード＆可視化機能追加"
+git push
